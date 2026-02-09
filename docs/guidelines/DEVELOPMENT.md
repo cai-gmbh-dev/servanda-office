@@ -1,4 +1,4 @@
-# Development Guidelines - OSCAL Viewer
+# Development Guidelines - Servanda Office
 
 **Version**: 1.0.0
 
@@ -13,43 +13,31 @@
 - **DRY**: Don't Repeat Yourself
 - **YAGNI**: You Ain't Gonna Need It
 
-### 1.2 OSCAL-Spezifisch
+### 1.2 Produkt-spezifisch (Servanda Office)
 
-- Alle OSCAL-Versionen (1.0.x - aktuell) unterstützen
-- Typsichere Parser für alle Dokumenttypen
-- Defensive Programmierung bei der Dokumentverarbeitung
+- Mandanten-Isolation serverseitig erzwingen
+- Immutable Versionen für Templates und Klauseln
+- Defensive Verarbeitung von Content und Exportdaten
 
 ---
 
 ## 2. Code-Organisation
 
-### 2.1 Verzeichnisstruktur
+### 2.1 Verzeichnisstruktur (Beispiel)
 
 ```
 src/
 ├── components/       # UI-Komponenten
-│   ├── common/       # Wiederverwendbare Komponenten
-│   │   ├── Button.tsx
-│   │   └── LoadingSpinner.tsx
-│   └── features/     # Feature-spezifische Komponenten
-│       ├── FileDropZone.tsx
-│       ├── ControlView.tsx
-│       └── GroupTree.tsx
-├── hooks/            # Custom Hooks
-│   ├── useDocument.ts
-│   └── useFileParser.ts
+│   ├── common/
+│   └── features/
+├── hooks/
 ├── services/         # Business Logic
-│   ├── parser/
-│   │   ├── catalog.ts
-│   │   ├── profile.ts
-│   │   ├── ssp.ts
-│   │   └── detector.ts
-│   └── validators/
-├── types/            # TypeScript Typen
-│   ├── oscal.ts
-│   └── document.ts
-├── utils/            # Hilfsfunktionen
-└── styles/           # CSS
+│   ├── content/
+│   ├── builder/
+│   └── export/
+├── types/
+├── utils/
+└── styles/
 ```
 
 ### 2.2 Datei-Benennung
@@ -58,56 +46,35 @@ src/
 |-----|------------|----------|
 | Komponenten | PascalCase | `ControlView.tsx` |
 | Hooks | camelCase mit `use` | `useDocument.ts` |
-| Parser | camelCase | `catalogParser.ts` |
-| Types | PascalCase | `OscalTypes.ts` |
+| Services | camelCase | `exportService.ts` |
+| Types | PascalCase | `ContractTypes.ts` |
 | Tests | `.test.ts` Suffix | `parser.test.ts` |
 
 ---
 
 ## 3. TypeScript Best Practices
 
-### 3.1 OSCAL Type Definitions
+### 3.1 Domänen-Typen
 
 ```typescript
 // Basistypen
-interface OscalDocument {
-  uuid: string
-  metadata: Metadata
+interface TenantScopedEntity {
+  tenantId: string
 }
 
-// Spezialisierte Typen
-interface Catalog extends OscalDocument {
-  groups?: Group[]
-  controls?: Control[]
-}
-
-// Union für alle Dokumenttypen
-type AnyOscalDocument = Catalog | Profile | ComponentDefinition | SystemSecurityPlan
-
-// Type Guards
-function isCatalog(doc: unknown): doc is Catalog {
-  return isObject(doc) && 'catalog' in (doc as object)
+interface TemplateVersion {
+  id: string
+  status: 'Draft' | 'Review' | 'Approved' | 'Published' | 'Deprecated'
 }
 ```
 
-### 3.2 Parser Patterns
+### 3.2 Result Pattern
 
 ```typescript
 // Result Pattern für Parser
-type ParseResult<T> =
-  | { success: true; data: T; version: string }
-  | { success: false; error: ParseError }
-
-function parseCatalog(json: unknown): ParseResult<Catalog> {
-  const version = detectVersion(json)
-
-  try {
-    const catalog = parseVersionSpecific(json, version)
-    return { success: true, data: catalog, version }
-  } catch (e) {
-    return { success: false, error: new ParseError(e.message) }
-  }
-}
+type Result<T> =
+  | { success: true; data: T }
+  | { success: false; error: Error }
 ```
 
 ---
@@ -117,22 +84,22 @@ function parseCatalog(json: unknown): ParseResult<Catalog> {
 ### 4.1 Parse Errors
 
 ```typescript
-class OscalParseError extends Error {
+class DomainValidationError extends Error {
   constructor(
     message: string,
-    public readonly documentType?: string,
+    public readonly entityType?: string,
     public readonly location?: string
   ) {
     super(message)
-    this.name = 'OscalParseError'
+    this.name = 'DomainValidationError'
   }
 }
 
 // Verwendung
-throw new OscalParseError(
-  'Missing required field "uuid"',
-  'catalog',
-  'catalog.uuid'
+throw new DomainValidationError(
+  'Missing required field "templateVersionId"',
+  'contract',
+  'contract.templateVersionId'
 )
 ```
 
@@ -141,11 +108,8 @@ throw new OscalParseError(
 ```typescript
 // Benutzerfreundliche Fehlermeldungen
 function getErrorMessage(error: Error): string {
-  if (error instanceof OscalParseError) {
-    return `Das Dokument konnte nicht gelesen werden: ${error.message}`
-  }
-  if (error instanceof SyntaxError) {
-    return 'Die Datei enthält kein gültiges JSON'
+  if (error instanceof DomainValidationError) {
+    return `Die Eingabe ist unvollständig: ${error.message}`
   }
   return 'Ein unerwarteter Fehler ist aufgetreten'
 }
@@ -159,13 +123,13 @@ function getErrorMessage(error: Error): string {
 
 ```typescript
 // Virtualisierung für große Listen
-function ControlList({ controls }: { controls: Control[] }) {
+function TemplateList({ templates }: { templates: Template[] }) {
   return (
     <VirtualList
-      items={controls}
+      items={templates}
       itemHeight={80}
       overscan={5}
-      renderItem={(control) => <ControlRow control={control} />}
+      renderItem={(template) => <TemplateRow template={template} />}
     />
   )
 }
@@ -249,22 +213,11 @@ function handleKeyDown(e: KeyboardEvent) {
 ### 7.1 Parser Tests
 
 ```typescript
-describe('Catalog Parser', () => {
-  it('should parse OSCAL 1.0.4 catalog', () => {
-    const result = parseCatalog(oscal104Sample)
-    expect(result.success).toBe(true)
-    expect(result.version).toBe('1.0.4')
-  })
-
-  it('should parse OSCAL 1.1.2 catalog', () => {
-    const result = parseCatalog(oscal112Sample)
-    expect(result.success).toBe(true)
-    expect(result.version).toBe('1.1.2')
-  })
-
-  it('should handle missing metadata gracefully', () => {
-    const result = parseCatalog({ catalog: {} })
-    expect(result.success).toBe(false)
+describe('Template Versioning', () => {
+  it('should create immutable versions', () => {
+    const v1 = createTemplateVersion()
+    const v2 = createTemplateVersion()
+    expect(v1.id).not.toBe(v2.id)
   })
 })
 ```
@@ -272,14 +225,14 @@ describe('Catalog Parser', () => {
 ### 7.2 Component Tests
 
 ```typescript
-describe('ControlView', () => {
-  it('should render control title', () => {
-    render(<ControlView control={mockControl} />)
-    expect(screen.getByText(mockControl.title)).toBeInTheDocument()
+describe('ContractBuilder', () => {
+  it('should render question title', () => {
+    render(<QuestionView question={mockQuestion} />)
+    expect(screen.getByText(mockQuestion.title)).toBeInTheDocument()
   })
 
   it('should be keyboard accessible', async () => {
-    render(<ControlView control={mockControl} />)
+    render(<QuestionView question={mockQuestion} />)
     await userEvent.tab()
     expect(screen.getByRole('button')).toHaveFocus()
   })

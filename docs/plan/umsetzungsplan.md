@@ -42,3 +42,4 @@
 ## Operative Verknüpfung
 - Detaillierte Sprint-Arbeitspakete: `./umsetzung-backlog.md`.
 - Team-Status wird in `.docs/team/*/updates.md` fortgeführt.
+- Sprint-Status-Übersicht: `./sprint-status.md`.

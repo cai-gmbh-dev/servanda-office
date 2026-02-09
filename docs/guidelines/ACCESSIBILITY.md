@@ -1,4 +1,4 @@
-# Accessibility Guidelines - OSCAL Viewer
+# Accessibility Guidelines - Servanda Office
 
 **Version**: 1.0.0
 **Standard**: WCAG 2.1 Level AA
@@ -7,7 +7,7 @@
 
 ## 1. Grundprinzipien
 
-Der OSCAL Viewer muss für alle Benutzer zugänglich sein, einschließlich Menschen mit:
+Servanda Office muss für alle Benutzer zugänglich sein, einschließlich Menschen mit:
 - Sehbehinderungen (Screen Reader, Vergrößerung)
 - Motorischen Einschränkungen (Tastaturnavigation)
 - Kognitiven Einschränkungen (Klare Struktur)
@@ -20,18 +20,18 @@ Der OSCAL Viewer muss für alle Benutzer zugänglich sein, einschließlich Mensc
 
 ```html
 <main id="main-content">
-  <article aria-labelledby="doc-title">
+  <article aria-labelledby="page-title">
     <header>
-      <h1 id="doc-title">NIST 800-53 Catalog</h1>
+      <h1 id="page-title">Vertrag erstellen</h1>
     </header>
 
-    <nav aria-label="Control Navigation">
-      <!-- Group/Control Navigation -->
+    <nav aria-label="Template Navigation">
+      <!-- Template Navigation -->
     </nav>
 
-    <section aria-labelledby="controls-heading">
-      <h2 id="controls-heading">Controls</h2>
-      <!-- Control List -->
+    <section aria-labelledby="questions-heading">
+      <h2 id="questions-heading">Fragen</h2>
+      <!-- Question List -->
     </section>
   </article>
 </main>
@@ -40,20 +40,20 @@ Der OSCAL Viewer muss für alle Benutzer zugänglich sein, einschließlich Mensc
 ### 2.2 Überschriften-Hierarchie
 
 ```
-h1: Dokumenttitel (z.B. "NIST 800-53 Rev 5")
-└── h2: Hauptabschnitte (z.B. "Access Control")
-    └── h3: Controls (z.B. "AC-1")
-        └── h4: Unterabschnitte (z.B. "Parameters")
+h1: Seitentitel (z.B. "Vertrag erstellen")
+└── h2: Hauptabschnitte (z.B. "Fragen")
+    └── h3: Einzelfrage (z.B. "Laufzeit")
+        └── h4: Detail/Erklärung
 ```
 
 ---
 
 ## 3. Baumstruktur (Controls/Groups)
 
-### 3.1 ARIA Tree Pattern
+### 3.1 ARIA Pattern (Template-Auswahl)
 
 ```tsx
-<ul role="tree" aria-label="OSCAL Control Hierarchy">
+<ul role="tree" aria-label="Template Hierarchie">
   {groups.map((group) => (
     <li
       role="treeitem"
@@ -72,9 +72,9 @@ h1: Dokumenttitel (z.B. "NIST 800-53 Rev 5")
 
         {isExpanded(group.id) && (
           <ul role="group">
-            {group.controls?.map((control) => (
+            {group.templates?.map((template) => (
               <li role="treeitem" aria-level={2}>
-                {control.title}
+                {template.title}
               </li>
             ))}
           </ul>
@@ -111,7 +111,7 @@ h1: Dokumenttitel (z.B. "NIST 800-53 Rev 5")
   onDrop={handleDrop}
   onDragOver={handleDragOver}
 >
-  <h2 id="dropzone-label">OSCAL Dokument laden</h2>
+<h2 id="dropzone-label">Dokumentvorlage laden</h2>
 
   <p>Ziehen Sie eine Datei hierher oder</p>
 
@@ -127,7 +127,7 @@ h1: Dokumenttitel (z.B. "NIST 800-53 Rev 5")
     <span aria-hidden="true">Datei durchsuchen</span>
   </label>
 
-  <p id="file-hint">Akzeptierte Formate: JSON, XML</p>
+  <p id="file-hint">Akzeptierte Formate: DOCX, ODT</p>
 </div>
 ```
 
@@ -206,7 +206,7 @@ h1: Dokumenttitel (z.B. "NIST 800-53 Rev 5")
 </div>
 
 // Beispiel: Nach Datei-Upload
-setStatusMessage(`Katalog "${doc.metadata.title}" erfolgreich geladen`)
+setStatusMessage(`Vorlage "${template.title}" erfolgreich geladen`)
 ```
 
 ### 7.2 Beschreibende Labels
@@ -214,14 +214,14 @@ setStatusMessage(`Katalog "${doc.metadata.title}" erfolgreich geladen`)
 ```tsx
 // Eindeutige Labels für Controls
 <article
-  aria-labelledby={`control-${control.id}-title`}
-  aria-describedby={`control-${control.id}-desc`}
+  aria-labelledby={`question-${question.id}-title`}
+  aria-describedby={`question-${question.id}-desc`}
 >
-  <h3 id={`control-${control.id}-title`}>
-    {control.id}: {control.title}
+  <h3 id={`question-${question.id}-title`}>
+    {question.title}
   </h3>
-  <p id={`control-${control.id}-desc`}>
-    {control.parts?.find(p => p.name === 'statement')?.prose}
+  <p id={`question-${question.id}-desc`}>
+    {question.helpText}
   </p>
 </article>
 ```

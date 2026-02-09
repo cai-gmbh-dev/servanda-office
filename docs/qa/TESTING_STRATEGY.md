@@ -1,4 +1,4 @@
-# Testing Strategy - OSCAL Viewer
+# Testing Strategy - Servanda Office
 
 **Version**: 1.0.0
 
@@ -8,9 +8,10 @@
 
 ### 1.1 Grundsätze
 
-- **OSCAL-Korrektheit**: Parser müssen alle OSCAL-Versionen korrekt verarbeiten
+- **Mandanten-Isolation**: Tenant-Scoping muss immer serverseitig enforced sein
+- **Version Pinning**: Verträge müssen reproduzierbar bleiben
 - **Accessibility First**: Jede Komponente muss a11y-Tests bestehen
-- **Performance-Awareness**: Große Dokumente (1000+ Controls) müssen performant sein
+- **Performance-Awareness**: Große Fragebögen (1000+ Fragen) müssen performant sein
 
 ### 1.2 Testing-Pyramide
 
@@ -31,47 +32,20 @@
 
 ## 2. Test-Kategorien
 
-### 2.1 Parser Tests (Kritisch)
+### 2.1 Domain Tests (Kritisch)
 
 ```typescript
-describe('OSCAL Version Detection', () => {
-  it('should detect OSCAL 1.0.0', () => {
-    expect(detectVersion(oscal100)).toBe('1.0.0')
-  })
-
-  it('should detect OSCAL 1.0.4', () => {
-    expect(detectVersion(oscal104)).toBe('1.0.4')
-  })
-
-  it('should detect OSCAL 1.1.0', () => {
-    expect(detectVersion(oscal110)).toBe('1.1.0')
-  })
-
-  it('should detect OSCAL 1.1.2', () => {
-    expect(detectVersion(oscal112)).toBe('1.1.2')
+describe('Version Pinning', () => {
+  it('should persist template and clause versions', () => {
+    const contract = createContractInstance()
+    expect(contract.templateVersionId).toBeDefined()
+    expect(contract.clauseVersionIds.length).toBeGreaterThan(0)
   })
 })
 
-describe('Catalog Parser', () => {
-  const versions = ['1.0.0', '1.0.4', '1.1.0', '1.1.2']
-
-  versions.forEach(version => {
-    describe(`OSCAL ${version}`, () => {
-      it('should parse valid catalog', () => {
-        const result = parseCatalog(fixtures[version].catalog)
-        expect(result.success).toBe(true)
-      })
-
-      it('should extract controls correctly', () => {
-        const result = parseCatalog(fixtures[version].catalog)
-        expect(result.data.controls.length).toBeGreaterThan(0)
-      })
-
-      it('should handle nested groups', () => {
-        const result = parseCatalog(fixtures[version].catalog)
-        expect(result.data.groups).toBeDefined()
-      })
-    })
+describe('Tenant Isolation', () => {
+  it('should reject cross-tenant access', () => {
+    expect(() => getContract({ tenantId: 't-1', id: 'c-2' })).toThrow()
   })
 })
 ```
@@ -79,27 +53,26 @@ describe('Catalog Parser', () => {
 ### 2.2 Component Tests
 
 ```typescript
-describe('ControlView', () => {
-  it('should render control title and id', () => {
-    render(<ControlView control={mockControl} />)
-    expect(screen.getByText('AC-1')).toBeInTheDocument()
-    expect(screen.getByText('Access Control Policy')).toBeInTheDocument()
+describe('QuestionView', () => {
+  it('should render question title', () => {
+    render(<QuestionView question={mockQuestion} />)
+    expect(screen.getByText('Laufzeit')).toBeInTheDocument()
   })
 
-  it('should render parameters when present', () => {
-    render(<ControlView control={controlWithParams} />)
-    expect(screen.getByText(/Parameter/)).toBeInTheDocument()
+  it('should render help text when present', () => {
+    render(<QuestionView question={questionWithHelp} />)
+    expect(screen.getByText(/Hinweis/)).toBeInTheDocument()
   })
 
   it('should expand/collapse on click', async () => {
-    render(<ControlView control={mockControl} />)
+    render(<QuestionView question={mockQuestion} />)
     const toggle = screen.getByRole('button')
 
     await userEvent.click(toggle)
-    expect(screen.getByTestId('control-details')).toBeVisible()
+    expect(screen.getByTestId('question-details')).toBeVisible()
 
     await userEvent.click(toggle)
-    expect(screen.queryByTestId('control-details')).not.toBeVisible()
+    expect(screen.queryByTestId('question-details')).not.toBeVisible()
   })
 })
 ```
@@ -108,18 +81,18 @@ describe('ControlView', () => {
 
 ```typescript
 describe('Accessibility', () => {
-  it('should have no violations in ControlView', async () => {
-    const { container } = render(<ControlView control={mockControl} />)
+  it('should have no violations in QuestionView', async () => {
+    const { container } = render(<QuestionView question={mockQuestion} />)
     expect(await axe(container)).toHaveNoViolations()
   })
 
-  it('should have no violations in GroupTree', async () => {
-    const { container } = render(<GroupTree groups={mockGroups} />)
+  it('should have no violations in TemplatePicker', async () => {
+    const { container } = render(<TemplatePicker templates={mockTemplates} />)
     expect(await axe(container)).toHaveNoViolations()
   })
 
   it('should support keyboard navigation', async () => {
-    render(<GroupTree groups={mockGroups} />)
+    render(<TemplatePicker templates={mockTemplates} />)
 
     await userEvent.tab()
     expect(screen.getByRole('treeitem')).toHaveFocus()
@@ -139,44 +112,31 @@ describe('Accessibility', () => {
 ```
 tests/
 ├── fixtures/
-│   ├── oscal-1.0.0/
-│   │   ├── catalog.json
-│   │   ├── profile.json
-│   │   └── ssp.json
-│   ├── oscal-1.0.4/
-│   │   └── ...
-│   ├── oscal-1.1.0/
-│   │   └── ...
-│   └── oscal-1.1.2/
-│       └── ...
+│   ├── templates/
+│   └── clauses/
 ├── mocks/
-│   ├── controls.ts
-│   └── groups.ts
+│   ├── questions.ts
+│   └── templates.ts
 └── factories/
-    └── oscal.ts
+    └── domain.ts
 ```
 
 ### 3.2 Factory Functions
 
 ```typescript
-export function createControl(overrides = {}): Control {
+export function createQuestion(overrides = {}): Question {
   return {
-    id: 'AC-1',
-    title: 'Access Control Policy',
-    params: [],
-    parts: [],
+    id: 'q-1',
+    title: 'Laufzeit',
     ...overrides
   }
 }
 
-export function createCatalog(overrides = {}): Catalog {
+export function createTemplate(overrides = {}): Template {
   return {
-    uuid: crypto.randomUUID(),
-    metadata: {
-      title: 'Test Catalog',
-      'oscal-version': '1.1.2'
-    },
-    groups: [],
+    id: crypto.randomUUID(),
+    title: 'Test Template',
+    versions: [],
     ...overrides
   }
 }
@@ -189,31 +149,29 @@ export function createCatalog(overrides = {}): Catalog {
 ### 4.1 Kritische User Journeys
 
 ```typescript
-// tests/e2e/upload-catalog.spec.ts
+// tests/e2e/create-contract.spec.ts
 import { test, expect } from '@playwright/test'
 
-test('user can upload and view catalog', async ({ page }) => {
+test('user can create a contract', async ({ page }) => {
   await page.goto('/')
 
-  // Upload file
-  const fileInput = page.locator('input[type="file"]')
-  await fileInput.setInputFiles('tests/fixtures/oscal-1.1.2/catalog.json')
+  // Select template
+  await page.click('text=Muster A')
 
-  // Verify catalog loaded
-  await expect(page.locator('h1')).toContainText('NIST')
+  // Answer questions
+  await page.fill('input[name="laufzeit"]', '12 Monate')
+  await page.click('text=Weiter')
 
-  // Navigate to control
-  await page.click('text=AC-1')
-  await expect(page.locator('.control-detail')).toBeVisible()
+  // Verify preview
+  await expect(page.locator('.contract-preview')).toBeVisible()
 })
 
-test('user can search controls', async ({ page }) => {
+test('user can export docx', async ({ page }) => {
   await page.goto('/')
-  await uploadCatalog(page)
 
-  // Search
-  await page.fill('input[type="search"]', 'password')
-  await expect(page.locator('.control-item')).toHaveCount(5)
+  await page.click('text=Muster A')
+  await page.click('text=Exportieren')
+  await expect(page.locator('.export-status')).toContainText('bereit')
 })
 ```
 
@@ -225,11 +183,11 @@ test('user can search controls', async ({ page }) => {
 
 ```typescript
 describe('Performance', () => {
-  it('should parse large catalog under 500ms', async () => {
-    const largeCatalog = generateLargeCatalog(1000) // 1000 controls
+  it('should render large question set under 500ms', async () => {
+    const largeQuestionSet = generateQuestions(1000)
 
     const start = performance.now()
-    parseCatalog(largeCatalog)
+    render(<QuestionList questions={largeQuestionSet} />)
     const duration = performance.now() - start
 
     expect(duration).toBeLessThan(500)

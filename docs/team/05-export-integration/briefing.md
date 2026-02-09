@@ -12,3 +12,8 @@ Stellt robusten Dokumentexport bereit und bereitet API-/Signatur-Integrationen v
 - Export Pipeline v1
 - Format-/Template-Mapping
 - Integrations-Roadmap
+
+## Nächste Aufgaben (Sprint 1)
+- DOCX Export Referenzdokumente definieren (Ref: `docs/knowledge/adr-003-export-engine-service.md`)
+- Export-Mapping v0.1 erstellen
+- ODT-Konvertierung evaluieren (Ref: `docs/knowledge/adr-004-odt-strategy.md`)

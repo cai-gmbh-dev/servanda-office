@@ -1,0 +1,9 @@
+# Local-only data
+related-informations/vs-nfd/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log

@@ -1,4 +1,4 @@
-# Quality Gates - OSCAL Viewer
+# Quality Gates - Servanda Office
 
 **Version**: 1.0.0
 
@@ -16,12 +16,12 @@
 | Coverage | Vitest | ≥ 80% | ✅ |
 | Build | Vite | Erfolgreich | ✅ |
 | Accessibility | axe-core | 0 Violations | ✅ |
-| Bundle Size | size-limit | < 100KB | ⚠️ Warning |
+| Bundle Size | size-limit | < 200KB | ⚠️ Warning |
 
 ### 1.2 Manuelle Review-Kriterien
 
-- [ ] OSCAL-Parsing funktioniert für alle Versionen
-- [ ] Keyboard-Navigation funktioniert
+- [ ] Tenant-Isolation geprüft (Server-side)
+- [ ] Version Pinning geprüft
 - [ ] Screen Reader getestet (bei UI-Änderungen)
 - [ ] Keine Console-Errors im Browser
 - [ ] Performance OK (bei großen Dokumenten)
@@ -54,21 +54,18 @@ jobs:
 
 ---
 
-## 3. OSCAL-Spezifische Gates
+## 3. Produkt-spezifische Gates
 
 ### 3.1 Version Compatibility
 
-Jeder PR muss alle OSCAL-Versionen unterstützen:
+Jeder PR muss die Versionierung und Pinning-Regeln validieren:
 
 ```typescript
-const REQUIRED_VERSIONS = ['1.0.0', '1.0.4', '1.1.0', '1.1.2']
-
-describe('Version Compatibility', () => {
-  REQUIRED_VERSIONS.forEach(version => {
-    it(`should parse OSCAL ${version} catalog`, () => {
-      const result = parseCatalog(fixtures[version].catalog)
-      expect(result.success).toBe(true)
-    })
+describe('Version Pinning', () => {
+  it('should pin template and clause versions', () => {
+    const contract = createContractInstance()
+    expect(contract.templateVersionId).toBeDefined()
+    expect(contract.clauseVersionIds.length).toBeGreaterThan(0)
   })
 })
 ```
@@ -76,12 +73,10 @@ describe('Version Compatibility', () => {
 ### 3.2 Document Type Coverage
 
 ```typescript
-const REQUIRED_TYPES = ['catalog', 'profile', 'component-definition', 'ssp']
-
-REQUIRED_TYPES.forEach(type => {
-  it(`should detect ${type} document type`, () => {
-    const result = detectDocumentType(fixtures[type])
-    expect(result).toBe(type)
+describe('Tenant Isolation', () => {
+  it('should scope all queries by tenantId', () => {
+    const result = listTemplates({ tenantId: 't-1' })
+    expect(result.every(t => t.tenantId === 't-1')).toBe(true)
   })
 })
 ```
@@ -112,9 +107,9 @@ module.exports = [
 
 | Metrik | Threshold |
 |--------|-----------|
-| Parse 100 Controls | < 50ms |
-| Parse 1000 Controls | < 500ms |
-| Initial Render | < 100ms |
+| Render 100 Fragen | < 50ms |
+| Render 1000 Fragen | < 500ms |
+| Initial Render | < 150ms |
 | First Contentful Paint | < 1.5s |
 
 ---
@@ -126,10 +121,10 @@ module.exports = [
 ```typescript
 // Alle Komponenten müssen axe-tests bestehen
 const components = [
-  'FileDropZone',
-  'ControlView',
-  'GroupTree',
-  'SearchPanel'
+  'TemplatePicker',
+  'QuestionView',
+  'ContractPreview',
+  'ExportDialog'
 ]
 
 components.forEach(component => {

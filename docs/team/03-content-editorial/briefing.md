@@ -13,3 +13,8 @@ Erstellt Prozess und Datenmodell für Muster/Klauseln inkl. Versionierung und Pu
 - Editorial Workflow v1
 - Versioning-Regeln inkl. Pinning
 - Publishing-Checklist
+
+## Nächste Aufgaben (Sprint 1)
+- Template/Clause Versioning Schema definieren (Ref: `docs/knowledge/domain-model-v0.1.md`)
+- Pinning-Regeln konkretisieren (Ref: `docs/knowledge/adr-002-version-pinning.md`)
+- Publishing-Gates dokumentieren

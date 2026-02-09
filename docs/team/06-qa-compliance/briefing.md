@@ -13,3 +13,8 @@ Sichert Qualitätsgates, Teststrategie und regulatorische Nachweisführung.
 - Testplan v1
 - Gate-Matrix für Releases
 - Compliance Evidence Checklist
+
+## Nächste Aufgaben (Sprint 1)
+- QA-Gates in CI-Jobs übersetzen (Ref: `docs/qa/QUALITY_GATES.md`)
+- Teststrategie v0.1 für MVP aufsetzen (Ref: `docs/qa/TESTING_STRATEGY.md`)
+- Compliance Evidence Checklist v0.1 erstellen

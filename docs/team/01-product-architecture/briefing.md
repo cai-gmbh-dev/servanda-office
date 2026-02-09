@@ -12,3 +12,8 @@
 - Architektur-Skizze v1
 - Priorisierte Story-Map
 - Liste kritischer Architektur-Entscheidungen (für ADR)
+
+## Nächste Aufgaben (Sprint 1)
+- Domänenmodell v1 finalisieren (Ref: `docs/knowledge/domain-model-v0.1.md`)
+- ADR-001..004 in Architektur-Backbone integrieren (Ref: `docs/knowledge/adr-*.md`)
+- Story-Map nach MVP-Epics priorisieren (Ref: `docs/architecture/architecture.md`)
