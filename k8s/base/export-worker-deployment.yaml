@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: servanda-export-worker
+  labels:
+    app: servanda
+    component: export-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: servanda
+      component: export-worker
+  template:
+    metadata:
+      labels:
+        app: servanda
+        component: export-worker
+    spec:
+      containers:
+        - name: servanda-export-worker
+          image: ghcr.io/cai-gmbh-dev/servanda-office/export-worker:latest
+          envFrom:
+            - configMapRef:
+                name: servanda-config
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: servanda-db-credentials
+                  key: url
+            - name: S3_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: servanda-s3-credentials
+                  key: S3_ENDPOINT
+            - name: S3_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: servanda-s3-credentials
+                  key: S3_ACCESS_KEY
+            - name: S3_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: servanda-s3-credentials
+                  key: S3_SECRET_KEY
+            - name: FEATURE_ODT_EXPORT
+              valueFrom:
+                configMapKeyRef:
+                  name: servanda-config
+                  key: FEATURE_ODT_EXPORT
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "200m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"

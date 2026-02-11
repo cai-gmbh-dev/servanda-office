@@ -5,6 +5,7 @@
 - Hoher Fokus auf Mandantenfähigkeit, DSGVO, sichere Versionierung und Export.
 
 ## Bisherige Meilensteine
+
 - Architektur- und Produktbriefings dokumentiert.
 - Engineering- und QA-Leitplanken festgelegt.
 - Teamstruktur und Wissensmanagement eingerichtet.
@@ -12,22 +13,136 @@
 - QA/Guidelines auf Servanda Office angepasst (2026-02-09).
 - ADR-001..004 akzeptiert (2026-02-09).
 - Sprint-Status-Übersicht eingeführt (`docs/plan/sprint-status.md`).
- - Sprint-1 Kickoff dokumentiert (Team-Updates, Owner Matrix bestätigt).
+- Sprint-1 Kickoff dokumentiert (Team-Updates, Owner Matrix bestätigt).
+- **Team 01 Sprint-1 Deliverables abgeschlossen (2026-02-10):**
+  - Domänenmodell v1 finalisiert (`docs/knowledge/domain-model-v1.md`)
+  - ADR-001 Tenancy operationalisiert (Implementation Spec mit RLS-Policies, App-Layer Guards, Testing)
+  - ADR-002 Pinning spezifiziert (ContractInstance-Datenstruktur, Lifecycle, DB-Schema, API-Vertrag)
+  - Architecture Backbone v1 erstellt (`docs/knowledge/architecture-backbone-v1.md`)
+  - Story-Map MVP priorisiert (`docs/knowledge/story-map-mvp.md`)
+- **Team 02 Sprint-1 Deliverables abgeschlossen (2026-02-10):**
+  - Threat Model Tenant-Isolation (`docs/knowledge/threat-model-tenant-isolation.md`)
+  - RBAC/IAM-Modell v1 (`docs/knowledge/rbac-iam-model-v1.md`)
+  - Audit-Event-Katalog + Compliance-Checkliste (`docs/knowledge/audit-compliance-v1.md`)
+- **Team 06 Sprint-1 Deliverables abgeschlossen (2026-02-10):**
+  - QA-Gates CI-Spezifikation v1 (`docs/knowledge/qa-gates-ci-v1.md`)
+  - Teststrategie v1 (`docs/knowledge/test-strategy-v1.md`)
+  - Compliance Evidence Checklist v1 (`docs/knowledge/compliance-evidence-checklist-v1.md`)
+- **Team 07 Sprint-1 Deliverables abgeschlossen (2026-02-10):**
+  - Deployment-Blueprint v1 (`docs/knowledge/deployment-blueprint-v1.md`)
+  - CI/CD Skeleton v1 (`docs/knowledge/cicd-skeleton-v1.md`)
+  - Secrets/Key-Handling v1 (`docs/knowledge/secrets-key-handling-v1.md`)
+- **Sprint 1 (Foundation) vollständig abgeschlossen (2026-02-10).** Alle 14 Deliverables fertig.
+- **Team 03 Sprint-2 Deliverables abgeschlossen (2026-02-10):**
+  - Content Versioning Schema v1 (`docs/knowledge/content-versioning-schema-v1.md`)
+    - Editorial Workflow (Draft→Review→Approved→Published→Deprecated), Publishing-Gates (20), DB-Schema, Changelog-Format
+- **Team 04 Sprint-2 Deliverables abgeschlossen (2026-02-10):**
+  - Interview Flow Design & Rule Engine v1 (`docs/knowledge/interview-flow-design-v1.md`)
+    - Geführter 4-Phasen-Flow, Save/Resume, Conditional Logic, Live-Preview, Completion-Flow
+  - Konfliktregeln-Matrix v1 (`docs/knowledge/conflict-rules-matrix-v1.md`) — gemeinsam mit Team 03
+    - 5 Regeltypen, Evaluierungsalgorithmus, Beispiel-Matrix (17 Klauseln, 18 Regeln), Lösungsvorschläge
+- **Sprint 2 (Editorial + Builder) Deliverables abgeschlossen (2026-02-10).** Alle 3 Deliverables fertig.
+- **Team 05 Sprint-3 Deliverables abgeschlossen (2026-02-10):**
+  - DOCX Export MVP Spezifikation (`docs/knowledge/docx-export-spec-v1.md`)
+    - E2E-Pipeline (API→pgboss→Worker→S3→Download), docxtemplater, Style-Templates, 3 Referenzdokumente
+  - ODT-Konvertierung Evaluierung (`docs/knowledge/odt-conversion-eval-v1.md`) — gemeinsam mit Team 07
+    - LibreOffice headless, Qualität AKZEPTABEL FÜR BETA, Feature-Flag per Tenant
+- **Team 06 Sprint-3 Deliverables abgeschlossen (2026-02-10):**
+  - Accessibility & Performance Baseline v1 (`docs/knowledge/a11y-performance-baseline-v1.md`)
+    - WCAG 2.1 AA, axe-core CI, Lighthouse CI, Core Web Vitals, Bundle-Budgets, API-Latenz-Ziele
+- **Team 02+07 Sprint-3 Deliverables abgeschlossen (2026-02-10):**
+  - Audit Logging E2E Spezifikation (`docs/knowledge/audit-logging-e2e-v1.md`)
+    - AuditService, monatliche Partitionierung, Retention, Query-API, Prometheus-Metriken, 12 E2E-Tests
+- **Sprint 3 (Export + Hardening) vollständig abgeschlossen (2026-02-10).** Alle 4 Deliverables fertig.
+- **Sprint 4 (Implementation — Code Scaffold) abgeschlossen (2026-02-11).** 5 Deliverables:
+  - **Team 01+07:** Monorepo Project Scaffold (`apps/`, `packages/`, `docker/`) — npm Workspaces, TypeScript Strict, ESLint, Vitest (80% Coverage), Docker-Compose (PostgreSQL 16, MinIO, Keycloak 24), init-db.sql (Schemas, RLS-Funktion), Express API-Server mit modularer Route-Struktur
+  - **Team 02:** Prisma Schema v1 + RLS Migrations (`apps/api/prisma/`) — 12 Tabellen über 4 Bounded Contexts, RLS auf allen tenant-scoped Tabellen, Cross-Tenant Content-Zugriff, Immutability-Trigger (ADR-002 Pin-Schutz, Content-Schutz, Audit-Immutability)
+  - **Team 04:** Frontend Scaffold (`apps/web/`) — React 18 + Vite 5, react-router-dom 6, Layout mit Skip-Link (WCAG 2.4.1), 6 Routen, Page-Scaffolds, API-Client
+  - **Team 05:** Export Worker Skeleton (`apps/export-worker/`) — pgboss Job-Queue, docxtemplater Renderer, LibreOffice ODT-Konverter, S3-Upload, Presigned-URL-Download
+  - **Team 06+07:** CI Pipeline v1 (`.github/workflows/`) — PR-Gate (6 Jobs), Main-Gate (4 Jobs inkl. PostgreSQL Service-Container, Lighthouse CI, Security-Scan)
+- **Sprint 5 (Module Implementation) abgeschlossen (2026-02-11).** 6 Deliverables:
+  - **Team 01:** Module Service Interfaces (`packages/shared/src/services.ts`) — ContentService, ContractService, ExportService, AuditService Interfaces + DTOs. Seed Data Script (`apps/api/prisma/seed.ts`) — 2 Tenants, 5 Users, 4 Klauseln, Rules, InterviewFlow, Template, ContractInstance, StyleTemplate.
+  - **Team 02:** JWT Auth Middleware (`apps/api/src/middleware/auth.ts`) — Keycloak JWKS + Dev-Fallback, requireRole() RBAC. AuditService (`apps/api/src/services/audit.service.ts`) — Append-Only, Fallback-Queue, Error-Isolation. Identity API (`apps/api/src/modules/identity/routes.ts`) — Users CRUD, Audit-Logs Query.
+  - **Team 03:** Content API (`apps/api/src/modules/content/routes.ts`, ~594 Zeilen) — Clause/Template CRUD, Version-Lifecycle (draft→published), Published Catalog cross-tenant.
+  - **Team 04:** Contract API (`apps/api/src/modules/contract/routes.ts`, ~377 Zeilen) — Create, Auto-Save, Validate (Rule-Engine), Complete (ADR-002 Pinning). Frontend: CatalogPage, ContractsPage, InterviewPage (~369 Zeilen, Auto-Save, Progress, ARIA).
+  - **Team 05:** Export API (`apps/api/src/modules/export/routes.ts`) — Job-Create, Status, Download (S3 Presigned). Data-Loader (`apps/export-worker/src/data/data-loader.ts`) — Prisma-Queries, gepinnte Versionen, Slot-Resolution.
+  - **Team 06+07:** Dockerfiles (API, Web, Export-Worker), nginx.conf, Docker-Compose App Services (api, web, export-worker unter `profiles: [app]`).
+- **Sprint 6 (Testing + Hardening) abgeschlossen (2026-02-11).** 6 Deliverables:
+  - **Team 06:** Unit-Tests Middleware + Services — error-handler.test.ts (8 Tests), auth.test.ts (8 Tests), tenant-context.test.ts (5 Tests), audit.service.test.ts (10 Tests), types.test.ts (12 Tests). Gesamt: 43 Tests.
+  - **Team 02+07:** Keycloak Realm-Automation (`docker/keycloak/realm-export.json`) — Realm "servanda", Client `servanda-office`, tenant_id Claim Mapper, 3 Rollen (admin/editor/user), 3 Dev-Users. Docker-Compose: `--import-realm` + Volume-Mount.
+  - **Team 03+05:** Referenz-DOCX-Template Generator (`apps/export-worker/templates/generate-template.ts`) — OpenXML mit PizZip, docxtemplater-Tags, Styles (Arial 11pt), Sections/Clauses Loops, npm Script `generate:template`.
+  - **Team 07:** Kubernetes-Manifeste Kustomize (`k8s/`) — base/ (10 Manifeste: Namespace, ConfigMap, API/Web/Worker Deployments+Services, PostgreSQL StatefulSet), overlays/dev/ (reduzierte Resources, environment=dev Label).
+  - **Team 06:** Playwright E2E Setup (`apps/web/`) — playwright.config.ts (Chromium, Dev-Headers, locale de-DE), e2e/happy-path.spec.ts (7 Tests: Dashboard, Catalog, Contracts, Sidebar, Skip-Link, Templates, A11y).
+  - **Team 07:** Observability Stack (`docker/`) — Prometheus (3 Scrape-Configs), Grafana (Datasource+Dashboard Provisioning, servanda-overview.json mit 5 Panels), postgres-exporter. Docker-Compose unter `profiles: [observability]`.
+- **Sprint 7 (Integration + Polish) abgeschlossen (2026-02-11).** 6 Deliverables:
+  - **Team 07:** K8s Network Policies (`k8s/base/`) — Default-Deny + API/Worker/Web-spezifische Policies (4 Dateien). Staging-Overlay (`k8s/overlays/staging/`) — Sealed Secrets, mittlere Resources, environment: staging. build-push Workflow (`.github/workflows/build-push.yml`) — Matrix-Build 3 Images, ghcr.io Push, Trivy Security Scan.
+  - **Team 06:** Integration-Tests für alle API-Module — Content routes.test.ts (~350 Zeilen, 12+ Tests), Contract routes.test.ts (~300 Zeilen, 10 Tests), Export routes.test.ts (~250 Zeilen, 7 Tests). Coverage-Gaps über alle Packages geschlossen.
+  - **Team 04:** LivePreviewPanel (`apps/web/src/components/LivePreviewPanel.tsx`) — Echtzeit-Vertragsvorschau mit Slot-Resolution und Parameter-Substitution. QuestionInput (`apps/web/src/components/QuestionInput.tsx`) — Extrahiert aus InterviewPage, multiple_choice Fragetyp, evaluateConditions() mit 4 Operatoren. InterviewPage refactored — Drei-Spalten-Layout, Conditional Logic, Auto-Save für answers+selectedSlots.
+  - **Team 03:** Changelog-API (`apps/api/src/modules/content/changelog.ts`) — CRUD für Changelog-Einträge (changeType, legalImpact, summary). Publishing-Gate-Validierung (`apps/api/src/modules/content/publishing-gates.ts`) — 10 Clause-Gates (PG-C01..C10) + 10 Template-Gates (PG-T01..T10), integriert in Content-API Status-Transitions.
+  - **Team 05:** Export Rendering-Tests (`apps/export-worker/src/__tests__/rendering.test.ts`, 12 Tests) — RenderContext, Template-Loading, Seed-Daten-Szenarien. Feature-Flag-System (`apps/export-worker/src/config/feature-flags.ts`) — Dreistufige Resolution (Tenant DB → Env → Default), ODT Feature-Flag + generisches System. Feature-Flag-Tests (11 Tests).
+- **Sprint 8 (Hardening + Production-Readiness) abgeschlossen (2026-02-11).** 8 Deliverables:
+  - **Team 01:** Blocker-Fix (pino-pretty DevDependency + Export-Handler DB-Update). API-Versionierung (`apps/api/src/main.ts`) — API_VERSION Konstante, X-API-Version Header, Dual Route-Mounting (v1 kanonisch + legacy), Helmet CSP Hardening, CORS Hardening.
+  - **Team 02:** User-Provisioning erweitert (`apps/api/src/modules/identity/routes.ts`, ~352 Zeilen) — GET/:id, GET/me, activate, deactivate, delete Endpoints, Self-Operation-Guards, formatUser Helper. Security-Headers über Helmet gehärtet.
+  - **Team 03:** Reviewer-Workflow (`apps/api/src/modules/content/reviewer.ts`, ~400 Zeilen) — 10 Endpoints für Clause+Template Version Reviews. Vier-Augen-Prinzip (Reviewer≠Author), Review-History in metadata.reviewHistory (append-only). assign-reviewer, approve, reject, request-changes, reviews GET.
+  - **Team 04:** CatalogPage Filter/Suche (`apps/web/src/pages/CatalogPage.tsx`, Rewrite) — URL-param Filter (q, category, jurisdiction), Client-seitige Filterung mit useMemo. ConflictResolutionPanel (`apps/web/src/components/ConflictResolutionPanel.tsx`) — Hard/Soft-Trennung, Dismiss, Revalidate, ARIA.
+  - **Team 05:** DLQ Routes (`apps/api/src/modules/export/dlq-routes.ts`) — Failed-Liste, Retry, Archive, Stats. Branding Routes (`apps/api/src/modules/export/branding-routes.ts`) — StyleTemplate CRUD (fonts, colors, logo, margins).
+  - **Team 06:** Component-Tests (CatalogPage, ContractsPage, QuestionInput, LivePreviewPanel), Test-Infrastruktur (vitest.config, test-setup, test-utils), axe-core CI im PR-Gate aktiviert.
+  - **Team 07:** Prod-Overlay (`k8s/overlays/prod/`) — External Secrets, HPAs (API 3-10, Worker 2-8), NGINX Ingress + TLS (cert-manager), Replicas. On-Prem Overlay (`k8s/overlays/onprem/`) — MinIO StatefulSet (20Gi), statische K8s Secrets, LDAP-Config.
 
 ## Offene Risiken
-- Regelwerk für Klausel-Konsistenz kann fachlich komplex werden.
-- Exportqualität (DOCX/ODT) benötigt frühe Testdaten.
+
+- ~~Regelwerk für Klausel-Konsistenz kann fachlich komplex werden.~~ → Spezifiziert (Konfliktregeln-Matrix v1, 5 Regeltypen, Evaluierungsalgorithmus).
+- ~~Exportqualität (DOCX/ODT) benötigt frühe Testdaten.~~ → Spezifiziert (DOCX Export Spec mit 3 Referenzdokumenten, ODT-Evaluierung mit Qualitätsmatrix).
 - On-Prem-Variante kann Security/Betriebstiefe erhöhen.
-- QA/Guidelines referenzieren noch "OSCAL Viewer" (Alignment mit Servanda Office erforderlich).
- - QA-Gates sind noch nicht als CI-Jobs umgesetzt (Risiko für Merge-Qualität).
- - Tenancy-Entscheidung ist akzeptiert, aber noch nicht in der Datenzugriffsschicht operationalisiert.
- - Export-Referenzdokumente fehlen für frühe Qualitätsnachweise.
+- ~~QA/Guidelines referenzieren noch "OSCAL Viewer" (Alignment mit Servanda Office erforderlich).~~ → QA-Basisdokumente aktualisiert (2026-02-10).
+- ~~QA-Gates sind noch nicht als CI-Jobs umgesetzt (Risiko für Merge-Qualität).~~ → Spezifiziert in QA-Gates CI v1, Rollout Phase 1 sofort (2026-02-10).
+- ~~Tenancy-Entscheidung ist akzeptiert, aber noch nicht in der Datenzugriffsschicht operationalisiert.~~ → Erledigt (2026-02-10).
+- ~~Export-Referenzdokumente fehlen für frühe Qualitätsnachweise.~~ → Erledigt (DOCX Export Spec, 3 Referenzdokumente).
+- ODT-Konvertierung Beta: Hierarchische Nummerierung kann bei komplexen Templates Abweichungen zeigen (akzeptiert für Beta).
+- ~~Lighthouse CI noch nicht produktiv eingerichtet (Rollout Phase 2 in Sprint 4).~~ → Konfiguriert (lighthouserc.json + Main-Gate Workflow, Sprint 4).
+- ~~JWT-Validierung noch im Dev-Mode (Header-basiert).~~ → Erledigt (JWT Auth Middleware mit Keycloak JWKS + Dev-Fallback, Sprint 5).
+- ~~Data-Loader im Export-Worker liefert Mock-Daten.~~ → Erledigt (Prisma-Queries, gepinnte Versionen, Sprint 5).
+- ~~Keycloak Realm-Konfiguration noch nicht automatisiert (manuelles Setup für Dev).~~ → Erledigt (realm-export.json mit Auto-Import, Sprint 6).
+- ~~E2E-Tests (Playwright) noch nicht implementiert.~~ → Erledigt (Playwright Setup + 7 Happy-Path-Tests, Sprint 6).
+- ~~Referenz-DOCX-Templates (.docx Vorlagen) noch nicht erstellt.~~ → Erledigt (generate-template.ts mit OpenXML/PizZip, Sprint 6).
 
 ## Nächste Entscheidungen
-- Zielarchitektur + Service-Schnitt.
-- Priorisierter MVP-Scope pro Epic.
-- Quality-Gate-Messbarkeit in CI.
-- Update der QA-/Guidelines-Dokumente auf Servanda Office (Owner: Team 06, Ziel: 2026-02-16).
- - RLS-Policies + App-Layer Guardrails verbindlich festlegen (Owner: Team 01 + 02 + 07).
- - ODT-Option als Beta via Konvertierung bestätigen (Owner: Team 05 + 07).
- - QA-Gates als CI-Standard final freigeben (Owner: Team 06).
+
+- ~~Zielarchitektur + Service-Schnitt.~~ → Erledigt (Architecture Backbone v1).
+- ~~Priorisierter MVP-Scope pro Epic.~~ → Erledigt (Story-Map MVP).
+- ~~Quality-Gate-Messbarkeit in CI (Owner: Team 06).~~ → Erledigt (QA-Gates CI v1, 72 Evidence-Items).
+- ~~Update der QA-/Guidelines-Dokumente auf Servanda Office (Owner: Team 06, Ziel: 2026-02-16).~~ → Erledigt (2026-02-10).
+- ~~RLS-Policies + App-Layer Guardrails verbindlich festlegen.~~ → Erledigt (ADR-001 Spec).
+- ~~ODT-Option als Beta via Konvertierung bestätigen (Owner: Team 05 + 07).~~ → Bestätigt (ODT-Evaluierung: AKZEPTABEL FÜR BETA, Feature-Flag per Tenant).
+- ~~QA-Gates als CI-Standard final freigeben (Owner: Team 06).~~ → Spezifiziert (QA-Gates CI v1, Rollout-Plan 4 Phasen).
+- Tech-Stack-Entscheidungen (BB-001..007) im Team-Review bestätigen (Owner: Team 01).
+- ~~Changelog-Format für Template-Versionen (Owner: Team 03, Ziel: Sprint 2).~~ → Erledigt (Content Versioning Schema v1, Abschnitt 5).
+- ~~DOCX Export MVP mit Referenzdokumenten (Owner: Team 05, Ziel: Sprint 3).~~ → Erledigt (DOCX Export Spec v1).
+- ~~Accessibility/Performance Baseline in CI (Owner: Team 06, Ziel: Sprint 3).~~ → Erledigt (A11y/Performance Baseline v1).
+- ~~Audit Logging E2E prüfen (Owner: Team 02 + 07, Ziel: Sprint 3).~~ → Erledigt (Audit Logging E2E Spec v1).
+- ~~Lighthouse-Scores auf Zielwerte: ≥90 Perf, ≥95 A11y (Owner: Team 06, Ziel: Sprint 4).~~ → Lighthouse CI konfiguriert (≥85 Perf, ≥90 A11y initial; Tuning in Sprint 6).
+- API-Latenz-Monitoring in Grafana einrichten (Owner: Team 06 + 07, Ziel: Sprint 6).
+- ~~Implementation-Phase beginnen: Code-Scaffold, DB-Migrationen, erste UI-Komponenten (Owner: alle Teams, Ziel: Sprint 4).~~ → Erledigt (Sprint 4: Monorepo, Prisma Schema, RLS, Frontend, Export Worker, CI).
+- ~~Modul-Interfaces definieren (ContentModule, ContractModule, ExportModule) (Owner: Team 01, Ziel: Sprint 5).~~ → Erledigt (services.ts mit allen DTOs + Interfaces).
+- ~~JWT-Validierung gegen Keycloak OIDC (Owner: Team 02, Ziel: Sprint 5).~~ → Erledigt (auth.ts mit JWKS + Dev-Fallback).
+- ~~Interview-Flow UI implementieren (Owner: Team 04, Ziel: Sprint 5).~~ → Erledigt (InterviewPage mit Auto-Save, Progress, Validation).
+- ~~Export-Worker DB-Integration (Owner: Team 05, Ziel: Sprint 5).~~ → Erledigt (data-loader.ts mit Prisma-Queries).
+- ~~Kubernetes-Manifeste + Docker-Images (Owner: Team 07, Ziel: Sprint 6).~~ → Erledigt (Kustomize base + dev Overlay, 13 Manifeste, Sprint 6).
+- ~~Unit-/Integrationstests schreiben (Owner: Team 06, Ziel: Sprint 6).~~ → Erledigt (31 Unit-Tests für Middleware + Services + Shared, Sprint 6).
+- ~~Keycloak Realm-Automation (Owner: Team 02 + 07, Ziel: Sprint 6).~~ → Erledigt (realm-export.json, Sprint 6).
+- ~~Referenz-DOCX-Templates erstellen (Owner: Team 03 + 05, Ziel: Sprint 6).~~ → Erledigt (generate-template.ts, Sprint 6).
+- ~~Kubernetes-Manifeste gegen K3s validieren (Owner: Team 07, Ziel: Sprint 7).~~ → Network Policies + Staging-Overlay erstellt (Sprint 7). K3s-Validierung verschoben auf Sprint 8.
+- ~~Integration-Tests mit echtem PostgreSQL (Testcontainers) (Owner: Team 06, Ziel: Sprint 7).~~ → Integration-Tests mit gemocktem Prisma erstellt (29+ Tests über 3 Module, Sprint 7). Testcontainers verschoben auf Sprint 8.
+- ~~Network Policies + Staging-Overlay (Owner: Team 07, Ziel: Sprint 7).~~ → Erledigt (Default-Deny + 3 Service-Policies, Staging-Overlay mit Sealed Secrets, Sprint 7).
+- ~~Live-Preview Panel + Conditional Logic (Owner: Team 04, Ziel: Sprint 7).~~ → Erledigt (LivePreviewPanel, QuestionInput mit multiple_choice + evaluateConditions, Sprint 7).
+- ~~Changelog-API + Publishing-Gates (Owner: Team 03, Ziel: Sprint 7).~~ → Erledigt (Changelog-API + 20 Publishing-Gates integriert, Sprint 7).
+- ~~API-Versionierung definieren (v1 Prefix, Breaking-Change-Policy) (Owner: Team 01, Ziel: Sprint 8).~~ → Erledigt (Dual Route-Mounting v1+legacy, X-API-Version Header, Sprint 8).
+- ~~Reviewer-Workflow: Zuweisung + Approve/Reject API-Endpoints (Owner: Team 03, Ziel: Sprint 8).~~ → Erledigt (10 Endpoints, Vier-Augen-Prinzip, Sprint 8).
+- ~~Prod-Overlay mit External Secrets Operator (Owner: Team 07, Ziel: Sprint 8).~~ → Erledigt (Prod + On-Prem Overlays, Sprint 8).
+- ~~Testcontainers-Setup für echte PostgreSQL-Integration-Tests (Owner: Team 06, Ziel: Sprint 8).~~ → Verschoben auf Sprint 9.
+- ~~Component-Tests für React-Seiten (Owner: Team 06, Ziel: Sprint 8).~~ → Erledigt (4 Component-Test-Suiten + axe-core CI, Sprint 8).
+- Testcontainers-Setup für echte PostgreSQL-Integration-Tests (Owner: Team 06, Ziel: Sprint 9).
+- Security-Test-Szenarien (T-01..T-12) automatisieren (Owner: Team 06, Ziel: Sprint 9).
+- Review-Screen vor Completion implementieren (Owner: Team 04, Ziel: Sprint 9).
+- Batch-Clause-Content-Endpoint für Live-Preview (Owner: Team 04, Ziel: Sprint 9).
+- Breaking-Change-Policy formalisieren (Owner: Team 01, Ziel: Sprint 9).

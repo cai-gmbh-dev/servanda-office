@@ -1,0 +1,18 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-web
+  namespace: servanda-office
+spec:
+  podSelector:
+    matchLabels:
+      app: servanda
+      component: web
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - ports:
+        - protocol: TCP
+          port: 80
+  # No egress rules — static files only, API is proxied externally

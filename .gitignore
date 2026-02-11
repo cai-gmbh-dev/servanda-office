@@ -1,9 +1,45 @@
 # Local-only data
 related-informations/vs-nfd/
 
-# OS / editor
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# OS
 .DS_Store
 Thumbs.db
-.idea/
-.vscode/
+
+# Test & Coverage
+coverage/
+.lighthouseci/
+axe-results.json
+test-results/
+playwright-report/
+
+# Prisma
+apps/api/prisma/*.db
+
+# Docker volumes
+docker/data/
+
+# Logs
 *.log
+logs/
+
+# Temporary files
+tmp/
+temp/

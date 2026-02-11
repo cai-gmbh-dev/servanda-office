@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: servanda-api
+  labels:
+    app: servanda
+    component: api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: servanda
+      component: api
+  template:
+    metadata:
+      labels:
+        app: servanda
+        component: api
+    spec:
+      containers:
+        - name: servanda-api
+          image: ghcr.io/cai-gmbh-dev/servanda-office/api:latest
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - configMapRef:
+                name: servanda-config
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: servanda-db-credentials
+                  key: url
+            - name: S3_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: servanda-s3-credentials
+                  key: S3_ENDPOINT
+            - name: S3_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: servanda-s3-credentials
+                  key: S3_ACCESS_KEY
+            - name: S3_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: servanda-s3-credentials
+                  key: S3_SECRET_KEY
+            - name: OIDC_ISSUER_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: servanda-config
+                  key: OIDC_ISSUER_URL
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 5

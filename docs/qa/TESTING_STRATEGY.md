@@ -294,4 +294,6 @@ npm run test:e2e -- --ui
 
 ---
 
-**Letzte Aktualisierung**: 2024
+**Letzte Aktualisierung**: 2026-02-10
+
+> **Hinweis:** Die vollständige Teststrategie v1 mit Servanda-spezifischen Security-Tests, Tenant-Isolation, Threat-Model-Coverage und E2E-Journeys findet sich in `docs/knowledge/test-strategy-v1.md`.

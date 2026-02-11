@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: servanda-config
+data:
+  # S3 endpoint pointing to on-prem MinIO service
+  S3_ENDPOINT: "http://servanda-minio:9000"
+  S3_BUCKET: "servanda-office"
+
+  # LDAP / Active Directory integration (placeholders)
+  LDAP_ENABLED: "true"
+  LDAP_URL: "ldap://ldap.example.local:389"
+  LDAP_BIND_DN: "cn=servanda-svc,ou=ServiceAccounts,dc=example,dc=local"
+  LDAP_SEARCH_BASE: "ou=Users,dc=example,dc=local"
+  LDAP_SEARCH_FILTER: "(sAMAccountName={{username}})"
+  LDAP_GROUP_SEARCH_BASE: "ou=Groups,dc=example,dc=local"
+
+  # Multi-tenant database-per-tenant feature flag
+  DB_PER_TENANT: "true"

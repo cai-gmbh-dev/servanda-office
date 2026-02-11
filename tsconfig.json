@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@servanda/shared": ["packages/shared/src"],
+      "@servanda/shared/*": ["packages/shared/src/*"]
+    }
+  },
+  "references": [
+    { "path": "apps/api" },
+    { "path": "apps/web" },
+    { "path": "apps/export-worker" },
+    { "path": "packages/shared" }
+  ],
+  "include": [],
+  "exclude": ["node_modules"]
+}

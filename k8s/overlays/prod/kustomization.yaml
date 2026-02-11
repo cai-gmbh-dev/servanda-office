@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: servanda-office
+
+resources:
+  - ../../base
+  - external-secrets.yaml
+  - ingress.yaml
+  - hpa-api.yaml
+  - hpa-worker.yaml
+
+patches:
+  - path: namespace-patch.yaml
+  - path: resource-patch.yaml
+  - path: replica-patch.yaml
+
+commonLabels:
+  environment: production

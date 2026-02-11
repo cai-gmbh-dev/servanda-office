@@ -1,0 +1,170 @@
+{
+  "id": "servanda",
+  "realm": "servanda",
+  "displayName": "Servanda Office",
+  "enabled": true,
+  "loginTheme": "keycloak",
+  "registrationAllowed": false,
+  "rememberMe": true,
+  "sslRequired": "none",
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "roles": {
+    "realm": [
+      {
+        "name": "admin",
+        "description": "Full administrative access"
+      },
+      {
+        "name": "editor",
+        "description": "Can create and edit content"
+      },
+      {
+        "name": "user",
+        "description": "Basic read access"
+      }
+    ],
+    "client": {
+      "servanda-office": [
+        {
+          "name": "admin",
+          "description": "Client-level admin role"
+        },
+        {
+          "name": "editor",
+          "description": "Client-level editor role"
+        },
+        {
+          "name": "user",
+          "description": "Client-level user role"
+        }
+      ]
+    }
+  },
+  "clients": [
+    {
+      "clientId": "servanda-office",
+      "name": "Servanda Office SPA",
+      "enabled": true,
+      "publicClient": true,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "rootUrl": "http://localhost:8081",
+      "baseUrl": "/",
+      "redirectUris": [
+        "http://localhost:8081/*",
+        "http://localhost:5173/*"
+      ],
+      "webOrigins": [
+        "http://localhost:8081",
+        "http://localhost:5173"
+      ],
+      "protocol": "openid-connect",
+      "attributes": {
+        "post.logout.redirect.uris": "http://localhost:8081/*##http://localhost:5173/*"
+      },
+      "protocolMappers": [
+        {
+          "name": "tenant-id-mapper",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.name": "tenant_id",
+            "claim.value": "00000000-0000-0000-0000-000000000002",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "audience-mapper",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "servanda-office",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "admin@musterkanzlei.de",
+      "email": "admin@musterkanzlei.de",
+      "firstName": "Admin",
+      "lastName": "Schmidt",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "admin",
+        "default-roles-servanda"
+      ],
+      "clientRoles": {
+        "servanda-office": [
+          "admin"
+        ]
+      }
+    },
+    {
+      "username": "editor@musterkanzlei.de",
+      "email": "editor@musterkanzlei.de",
+      "firstName": "Eva",
+      "lastName": "Editor",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "editor123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "editor",
+        "default-roles-servanda"
+      ],
+      "clientRoles": {
+        "servanda-office": [
+          "editor"
+        ]
+      }
+    },
+    {
+      "username": "user@musterkanzlei.de",
+      "email": "user@musterkanzlei.de",
+      "firstName": "Max",
+      "lastName": "Nutzer",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "user123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "user",
+        "default-roles-servanda"
+      ],
+      "clientRoles": {
+        "servanda-office": [
+          "user"
+        ]
+      }
+    }
+  ]
+}

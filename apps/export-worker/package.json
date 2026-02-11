@@ -1,0 +1,31 @@
+{
+  "name": "@servanda/export-worker",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "build": "tsc",
+    "generate:template": "tsx templates/generate-template.ts",
+    "start": "node dist/main.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@servanda/shared": "*",
+    "@prisma/client": "^5.20.0",
+    "pg-boss": "^9.0.0",
+    "docxtemplater": "^3.50.0",
+    "pizzip": "^3.1.0",
+    "@aws-sdk/client-s3": "^3.665.0",
+    "@aws-sdk/s3-request-presigner": "^3.665.0",
+    "pino": "^9.4.0",
+    "uuid": "^10.0.0"
+  },
+  "devDependencies": {
+    "@types/uuid": "^10.0.0",
+    "prisma": "^5.20.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0",
+    "pino-pretty": "^11.2.0"
+  }
+}

@@ -1,0 +1,34 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-export-worker
+  namespace: servanda-office
+spec:
+  podSelector:
+    matchLabels:
+      app: servanda
+      component: export-worker
+  policyTypes:
+    - Ingress
+    - Egress
+  # No ingress rules — worker pulls from queue, no inbound traffic needed
+  egress:
+    # Allow DNS resolution
+    - ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # PostgreSQL
+    - to:
+        - podSelector:
+            matchLabels:
+              app: servanda
+              component: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+    # MinIO (S3-compatible storage)
+    - ports:
+        - protocol: TCP
+          port: 9000

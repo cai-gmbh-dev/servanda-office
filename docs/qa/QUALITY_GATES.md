@@ -187,4 +187,6 @@ components.forEach(component => {
 
 ---
 
-**Letzte Aktualisierung**: 2024
+**Letzte Aktualisierung**: 2026-02-10
+
+> **Hinweis:** Die vollständige CI-Job-Spezifikation mit GitHub Actions Workflows, Security-Tests und Gate-Matrix findet sich in `docs/knowledge/qa-gates-ci-v1.md`.

@@ -1,0 +1,21 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'servanda-api'
+    metrics_path: /api/metrics
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['api:3000']
+
+  - job_name: 'servanda-export-worker'
+    metrics_path: /metrics
+    scrape_interval: 30s
+    static_configs:
+      - targets: ['export-worker:9090']
+
+  - job_name: 'postgres-exporter'
+    scrape_interval: 30s
+    static_configs:
+      - targets: ['postgres-exporter:9187']

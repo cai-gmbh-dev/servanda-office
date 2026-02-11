@@ -11,3 +11,162 @@
 - Referenzen: `docs/knowledge/adr-001-multi-tenant-isolation.md`, `docs/knowledge/adr-003-export-engine-service.md`, `docs/knowledge/domain-model-v0.1.md`.
 - Architektur-Übersicht: `docs/knowledge/architecture-summary.md`.
 - Owner Matrix bestätigt: `docs/plan/sprint-status.md`.
+
+## 2026-02-10
+- **Sprint-1 Deliverables abgeschlossen:**
+  1. **Deployment-Blueprint v1** (`docs/knowledge/deployment-blueprint-v1.md`)
+     - 3 Umgebungen: dev (auto-deploy) → stage (tag-deploy) → prod (manual approval)
+     - Kubernetes-Manifeste: API Server (HPA), Export Worker (HPA + LibreOffice), Frontend (Nginx)
+     - Kustomize-Overlays: base + dev/stage/prod/on-prem
+     - Network Policies: API→DB+S3+KC, Worker→DB+S3, Frontend→nichts
+     - Docker-Images: distroless (API), node-slim+LibreOffice (Worker), nginx-alpine (Frontend)
+     - On-Prem: K3s/RKE2, MinIO, LDAP/AD, Air-Gap-Support, DB-per-Tenant optional
+     - Backup: pg_dump+WAL, S3 Replication, RPO <1h (Cloud), RTO <1h (Cloud)
+     - Observability: Prometheus+Grafana, Custom-Metriken, Alerting-Regeln
+     - DB-Migration: Prisma + Init-Container, Rollback via PITR
+     - Sizing: dev(1N/4CPU), stage(2N/8CPU), prod(3+N/16+CPU)
+  2. **CI/CD Skeleton v1** (`docs/knowledge/cicd-skeleton-v1.md`)
+     - 4 Workflows: pr-gate, main-gate, build-push, deploy
+     - Container Registry: ghcr.io (GitHub Container Registry)
+     - Image-Scanning: Trivy (CRITICAL+HIGH)
+     - Promotion: Feature→main→dev(auto)→stage(tag)→prod(approval)
+     - Release-Prozess: SemVer, Release-Branch, Tag-basiert
+     - Caching: npm + Docker Layer (GHA Cache)
+     - CODEOWNERS: Team-basierte Review-Pflicht
+     - Scheduled Security Scan: Wöchentlich (Dependencies + Images)
+  3. **Secrets/Key-Handling v1** (`docs/knowledge/secrets-key-handling-v1.md`)
+     - 12 Secrets inventarisiert mit Klassifizierung (Critical/High/Medium/Low)
+     - Storage: K8s Secrets (dev) → Sealed Secrets (stage) → External Secrets/Vault (prod)
+     - Key-Management: JWT (RS256, 365d), TLS (cert-manager, 90d), DB TDE, S3 SSE
+     - Tenant-Keys (Enterprise): KMS/Vault per-Tenant, Field-Level Encryption optional
+     - Rotation: Zero-Downtime für alle Secrets, Monitoring-Alert für überfällige Rotation
+     - Access Control: K8s RBAC (Least Privilege), Vault Policies
+     - Audit: K8s Audit Policy, Vault Audit Log, CloudTrail
+     - Git-Leaks: gitleaks Pre-Commit + CI-Check
+     - Notfall: Kompromittierungs-Runbook, Key-Recovery-Verfahren
+- Abhängigkeiten: ADR-001 (Team 01), ADR-003 (Team 01+05), Audit-Compliance v1 (Team 02), QA-Gates CI v1 (Team 06).
+
+## 2026-02-11 (Sprint 4)
+
+**Sprint-4 Deliverables abgeschlossen.**
+
+Erstellte Code-Artefakte:
+
+- **Docker-Compose Dev-Environment** (`docker/docker-compose.yml`) — gemeinsam mit Team 01
+  PostgreSQL 16-alpine (Health-Check, Volume-Persistenz), MinIO (S3-kompatibel, Console auf :9001, Bucket-Init via mc), Keycloak 24 (Start-Dev-Mode, OIDC-Provider). Init-DB-Script (`docker/init-db.sql`): Extensions (uuid-ossp, pgcrypto), 5 Schemas (platform, content, contract, export, keycloak), `servanda_app`-Rolle, `current_tenant_id()` RLS-Funktion.
+
+- **CI Pipeline v1 GitHub Actions** (`.github/workflows/`) — gemeinsam mit Team 06
+  PR-Gate (6 Jobs: lint, typecheck, test mit Coverage ≥80%, build, bundle-size, a11y). Main-Gate (4 Jobs: full test suite mit PostgreSQL Service-Container, Docker-Image-Build, Lighthouse CI, Dependency-Security-Scan). Lighthouse-Konfiguration (`lighthouserc.json`): 3 Runs, Desktop-Preset, Assertions ≥85 Perf / ≥90 A11y.
+
+- **Environment-Konfiguration** (`.env.example`, `.gitignore`)
+  Alle Umgebungsvariablen dokumentiert: DATABASE_URL, S3_*, OIDC_*, EXPORT_*, FEATURE_ODT_EXPORT. .gitignore mit Ausschlüssen für node_modules, dist, .env, coverage, prisma, docker-data.
+
+Nächste Schritte Team 07:
+
+- Sprint 5: Kubernetes-Manifeste (Kustomize base + dev overlay) erstellen.
+- Docker-Images für API, Web, Export-Worker bauen und in ghcr.io pushen.
+- Secrets-Management für dev-Umgebung einrichten (K8s Secrets).
+- Observability-Stack aufsetzen (Prometheus + Grafana).
+
+## 2026-02-11 (Sprint 5)
+
+**Sprint-5 Deliverables abgeschlossen (gemeinsam mit Team 06).**
+
+Erstellte Code-Artefakte:
+
+- **Dockerfiles** (`apps/*/Dockerfile`) — gemeinsam mit Team 06
+  3 Multi-Stage Dockerfiles: API (node:20-slim + openssl, Prisma), Web (nginx:1.27-alpine), Export-Worker (node:20-slim + LibreOffice headless). Alle mit optimierten Layer-Caching (package.json first, dann Code).
+
+- **Docker-Compose App Services** (`docker/docker-compose.yml`)
+  api (Port 3000), web (Port 8081→80), export-worker Services hinzugefügt. `profiles: [app]` für optionalen App-Start. Environment-Konfiguration für alle Services. Dependencies: postgres (healthy), minio-init (completed_successfully).
+
+Nächste Schritte Team 07:
+
+- Sprint 6: Kubernetes-Manifeste (Kustomize base + dev overlay) erstellen.
+- Docker-Images bauen und in ghcr.io pushen (build-push Workflow aktivieren).
+- Keycloak Realm-Export für Dev-Automatisierung (realm-export.json).
+- Observability: Prometheus + Grafana Stack im Docker-Compose ergänzen.
+
+## 2026-02-11 (Sprint 6)
+
+**Sprint-6 Deliverables abgeschlossen (teilweise gemeinsam mit Team 02 + 06).**
+
+Erstellte Artefakte:
+
+- **Kubernetes-Manifeste (Kustomize)** (`k8s/`)
+  - `base/`: 10 Manifeste — Namespace (servanda-office), ConfigMap, API Deployment+Service (HPA-ready, health-probes), Web Deployment+Service, Export-Worker Deployment, PostgreSQL StatefulSet+Service (10Gi PVC). Resources-Limits definiert. Secrets referenziert (servanda-db-credentials, servanda-s3-credentials).
+  - `overlays/dev/`: Reduzierte Resource-Limits für Dev-Umgebung, environment=dev Label.
+
+- **Keycloak Realm-Automation** (`docker/keycloak/realm-export.json`) — gemeinsam mit Team 02
+  Docker-Compose aktualisiert: `command: start-dev --import-realm`, Volume-Mount für realm-export.json.
+
+- **Observability Stack** (`docker/prometheus/`, `docker/grafana/`)
+  - `prometheus.yml`: Scrape-Configs für API (10s), Export-Worker (30s), Postgres-Exporter (30s).
+  - Grafana Provisioning: Datasource (Prometheus), Dashboard-Provider (file-based).
+  - `servanda-overview.json`: Dashboard mit 5 Panels (Request Rate, Response Time P95, Export Jobs, DB Connections, Error Rate).
+  - Docker-Compose: prometheus, grafana (Port 3001), postgres-exporter Services unter `profiles: [observability]`. Volumes für Persistenz.
+
+Nächste Schritte Team 07:
+
+- Sprint 7: Kubernetes-Manifeste gegen K3s validieren.
+- build-push Workflow aktivieren (Docker-Images → ghcr.io).
+- Network Policies erstellen (API→DB+S3+KC, Worker→DB+S3).
+- Staging-Overlay mit Sealed Secrets erstellen.
+
+## 2026-02-11 (Sprint 7)
+
+**Sprint-7 Deliverables abgeschlossen.**
+
+Erstellte Code-Artefakte:
+
+- **K8s Network Policies** (`k8s/base/`)
+  - `network-policy-default-deny.yaml`: Default-Deny für alle Ingress/Egress im Namespace.
+  - `network-policy-api.yaml`: API Ingress Port 3000, Egress zu Postgres:5432, MinIO:9000, Keycloak:8080.
+  - `network-policy-worker.yaml`: Kein Ingress, Egress zu Postgres:5432, MinIO:9000.
+  - `network-policy-web.yaml`: Ingress Port 80, kein Egress.
+  - `kustomization.yaml` aktualisiert mit 4 Network-Policy-Ressourcen.
+
+- **Staging-Overlay** (`k8s/overlays/staging/`)
+  - `kustomization.yaml`: Referenziert base, Patches, Sealed Secrets, commonLabels environment: staging.
+  - `namespace-patch.yaml`: environment: staging Label.
+  - `resource-patch.yaml`: Mittlere Ressourcen (API 512Mi/500m, Worker 1Gi/750m, Web 128Mi/200m).
+  - `sealed-secrets.yaml`: Bitnami SealedSecret Platzhalter für db-credentials und s3-credentials.
+
+- **build-push Workflow** (`.github/workflows/build-push.yml`)
+  Matrix-Build für 3 Docker-Images (api, web, export-worker). Push zu ghcr.io. Docker Metadata Action für Tags (SHA, Branch, SemVer). Trivy Security Scan (CRITICAL+HIGH). Trigger auf main-Push und Tags.
+
+Nächste Schritte Team 07:
+
+- Sprint 8: K8s-Manifeste gegen K3s validieren (lokaler Test).
+- Prod-Overlay mit External Secrets Operator erstellen.
+- Ingress-Controller-Konfiguration (NGINX Ingress + TLS).
+- On-Prem Overlay (K3s/RKE2, MinIO, LDAP-Integration).
+
+## 2026-02-11 (Sprint 8)
+
+**Sprint-8 Deliverables abgeschlossen.**
+
+Erstellte Artefakte:
+
+- **Prod-Overlay** (`k8s/overlays/prod/`)
+  - `kustomization.yaml` — Referenziert base, 3 Patches, External Secrets, HPAs, Ingress. commonLabels environment: production.
+  - `namespace-patch.yaml` — environment: production Label.
+  - `resource-patch.yaml` — Produktions-Resources (API 1Gi/1000m, Worker 2Gi/1000m, Web 256Mi/500m).
+  - `replica-patch.yaml` — API 3 Replicas, Worker 2, Web 2.
+  - `external-secrets.yaml` — ExternalSecret CRDs für db-credentials, s3-credentials, oidc-credentials (ClusterSecretStore Referenz).
+  - `hpa-api.yaml` — HPA min 3, max 10, CPU 70%.
+  - `hpa-worker.yaml` — HPA min 2, max 8, CPU 80%.
+  - `ingress.yaml` — NGINX Ingress, TLS via cert-manager (Let's Encrypt), Rate-Limiting Annotations.
+
+- **On-Prem Overlay** (`k8s/overlays/onprem/`)
+  - `kustomization.yaml` — Referenziert base, MinIO StatefulSet, statische Secrets, Config-Patch.
+  - `minio-statefulset.yaml` — MinIO StatefulSet mit 20Gi PVC.
+  - `static-secrets.yaml` — Kubernetes Secrets (Platzhalter für DB, S3, OIDC).
+  - `onprem-config-patch.yaml` — LDAP-Konfiguration, lokale MinIO-Endpoint-Referenz.
+
+Nächste Schritte Team 07:
+
+- Sprint 9: K8s-Manifeste gegen K3s validieren (lokaler Test).
+- cert-manager Installation + Let's Encrypt ClusterIssuer.
+- External Secrets Operator Setup für Cloud-Deployments.
+- Backup-CronJob für PostgreSQL + S3-Replikation.
