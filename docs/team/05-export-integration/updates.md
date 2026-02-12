@@ -186,3 +186,17 @@ Erstellte Code-Artefakte:
 
 - **Logo-Upload Service** (`apps/api/src/modules/export/logo-upload.ts`, ~322 Zeilen)
   POST /branding/style-templates/:id/logo — Logo-Upload (PNG/JPEG/SVG, max 2MB). Header-basierte Dimension-Detection für PNG (IHDR) und JPEG (SOF0/SOF2). S3-Upload mit Tenant-scoped Path. Audit-Logging.
+
+## Sprint 13 (2026-02-12) — Export-Caching + Dynamic Concurrency
+
+- **Export Result-Cache** (`apps/export-worker/src/cache/result-cache.ts`)
+  SHA-256 Hash des Contract-Datenmodells (Answers, SelectedSlots, PinnedVersions, StyleTemplate) als Cache-Key. S3-basierter Cache-Lookup vor Rendering. Cache-Hit → direkt S3-URL zurückgeben (kein Rendering). Cache-Invalidierung bei Contract-Änderungen. TTL konfigurierbar (EXPORT_CACHE_TTL_HOURS, default 24h).
+
+- **Auto-Scaler** (`apps/export-worker/src/scaling/auto-scaler.ts`)
+  Queue-Depth-basierte dynamische Worker-Concurrency. Konfigurierbar: minConcurrency, maxConcurrency, scaleUpThreshold, scaleDownThreshold, cooldownMs. Periodische Queue-Abfrage (pollIntervalMs). Lineares Scaling zwischen min/max basierend auf Queue-Tiefe. Cooldown-Mechanismus verhindert Flapping. Callback bei Concurrency-Änderung. Start/Stop-Lifecycle.
+
+- **Export Prometheus Metrics** (`apps/export-worker/src/metrics/export-metrics.ts`)
+  Manuelle Prometheus-Metrik-Serialisierung (kein prom-client nötig). Metriken: export_jobs_total (success/failure/cache_hit), render_duration_seconds (Histogram mit Buckets), queue_depth, worker_concurrency, cache_hit_rate. HTTP-Server auf Port 9091 (/metrics Endpoint). Integration in main.ts mit AutoScaler und Queue-Depth-Monitoring.
+
+- **main.ts Integration** (`apps/export-worker/src/main.ts`)
+  AutoScaler-Initialisierung mit Queue-Size-Callback. Metrics-Server-Start auf Port 9091. Queue-Depth-Polling (10s Intervall). Graceful Shutdown für AutoScaler + Metrics-Server.

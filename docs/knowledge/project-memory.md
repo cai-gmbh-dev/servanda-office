@@ -118,6 +118,15 @@
   - **Team 06:** Visual Regression Tests (`apps/web/e2e/visual-regression.spec.ts`) — Playwright Screenshot-Tests, 5 Seiten. QA Sign-Off (`docs/knowledge/qa-signoff-v1.md`) — BEREIT FÜR RELEASE.
   - **Team 07:** Blue/Green Deployment (`k8s/scripts/blue-green-deploy.sh`) — Zero-Downtime, Rollback. HPA-Tuning (`k8s/overlays/prod/hpa-tuned.yaml`) — API min 2/max 8, Worker min 1/max 4.
 
+- **Sprint 13 (Event-System + OpenSearch + Enterprise-Readiness) abgeschlossen (2026-02-12).** 18 Deliverables:
+  - **Team 01:** EventBus Interface + InProcessEventBus (`packages/shared/src/event-bus.ts`) — DomainEvent, publish/subscribe, Error-Isolation, Singleton. Audit-Consumer (`apps/api/src/events/audit-consumer.ts`) — Event-driven Audit-Logging. EventBus Prometheus Metriken (`apps/api/src/modules/metrics/event-metrics.ts`).
+  - **Team 02:** SCIM 2.0 Provisioning (`apps/api/src/modules/scim/routes.ts`) — RFC 7644 kompatibel, 7 Endpoints, API-Key Auth. SSE-KMS Evaluation (`docs/knowledge/sse-kms-evaluation-v1.md`) — AWS KMS vs. Vault Transit vs. BYOK. SAML/OIDC Federation Design (`docs/knowledge/saml-oidc-federation-v1.md`) — Enterprise SSO, IdP-Brokering, JIT-Provisioning.
+  - **Team 03:** OpenSearch Integration (`apps/api/src/services/search/`) — Schema-Mapping (German Analyzer), Indexing-Service, Search-Client. Search API (`apps/api/src/modules/search/routes.ts`) — Faceted Search, Autocomplete, SQL-Fallback bei Feature-Flag off.
+  - **Team 04:** Code-Splitting (`apps/web/src/App.tsx`) — React.lazy() + Suspense für alle Seiten. Notification Toast System (`apps/web/src/components/NotificationToast.tsx`, `apps/web/src/hooks/useNotifications.ts`) — 4 Types, Auto-Dismiss, Max 3 Stack, ARIA.
+  - **Team 05:** Export Result-Caching (`apps/export-worker/src/cache/result-cache.ts`) — SHA-256 Hash, S3-based, TTL. Dynamic AutoScaler (`apps/export-worker/src/scaling/auto-scaler.ts`) — Queue-Depth-basiert, Min/Max Bounds, Cooldown. Export Prometheus Metrics (`apps/export-worker/src/metrics/export-metrics.ts`).
+  - **Team 06:** Soak-Test 15min + Large-Dataset Load-Test 1000+ Klauseln (`apps/api/src/__tests__/load/`). RUM Baseline (`apps/web/src/utils/rum.ts`) — Core Web Vitals, Navigation Timing, Route Changes. Process Metrics (`apps/api/src/modules/metrics/process-metrics.ts`).
+  - **Team 07:** Helm Charts v1 (`helm/servanda-office/`) — Vollständiges Chart mit Values für dev/staging/prod/on-prem. OpenSearch Docker-Compose (`docker/opensearch/`). GitOps-Evaluierung (`docs/knowledge/gitops-evaluation-v1.md`) — ArgoCD empfohlen, Application-Manifest.
+
 ## Offene Risiken
 
 - ~~Regelwerk für Klausel-Konsistenz kann fachlich komplex werden.~~ → Spezifiziert (Konfliktregeln-Matrix v1, 5 Regeltypen, Evaluierungsalgorithmus).

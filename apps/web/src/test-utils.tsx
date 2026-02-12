@@ -2,11 +2,18 @@ import { render, RenderOptions } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { ReactElement } from 'react';
 import { axe, toHaveNoViolations } from 'jest-axe';
+import { NotificationProvider } from './hooks/useNotifications';
 
 expect.extend(toHaveNoViolations);
 
 function AllProviders({ children }: { children: React.ReactNode }) {
-  return <BrowserRouter>{children}</BrowserRouter>;
+  return (
+    <BrowserRouter>
+      <NotificationProvider>
+        {children}
+      </NotificationProvider>
+    </BrowserRouter>
+  );
 }
 
 function customRender(

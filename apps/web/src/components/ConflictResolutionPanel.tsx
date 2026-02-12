@@ -35,7 +35,7 @@ export function ConflictResolutionPanel({
   async function revalidate() {
     setResolving(true);
     try {
-      await api.post(`/contracts/${contractId}/validate`);
+      await api.post(`/contracts/${contractId}/validate`, {});
       onResolved();
     } finally {
       setResolving(false);

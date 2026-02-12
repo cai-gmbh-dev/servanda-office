@@ -13,6 +13,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
+import { useNotifications } from '../hooks/useNotifications';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -106,6 +107,7 @@ function formatAnswerValue(value: unknown): string {
 export function ReviewPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { notify } = useNotifications();
 
   const [contract, setContract] = useState<ContractDetail | null>(null);
   const [clauses, setClauses] = useState<ClauseContent[]>([]);
@@ -168,6 +170,7 @@ export function ReviewPage() {
       await api.post(`/v1/contracts/${contract.id}/complete`, {});
       setCompleted(true);
       setCompleting(false);
+      notify('success', 'Vertrag abgeschlossen');
     } catch (err) {
       setError(
         err instanceof Error
@@ -176,7 +179,7 @@ export function ReviewPage() {
       );
       setCompleting(false);
     }
-  }, [contract]);
+  }, [contract, notify]);
 
   /* ---- Export: Trigger ---- */
   const handleExport = useCallback(async () => {
@@ -191,13 +194,14 @@ export function ReviewPage() {
       });
       setExportJobId(job.id);
       setExportState('processing');
+      notify('info', 'Export gestartet');
     } catch (err) {
       setExportError(
         err instanceof Error ? err.message : 'Fehler beim Erstellen des Exports',
       );
       setExportState('error');
     }
-  }, [contract]);
+  }, [contract, notify]);
 
   /* ---- Export: Polling ---- */
   useEffect(() => {

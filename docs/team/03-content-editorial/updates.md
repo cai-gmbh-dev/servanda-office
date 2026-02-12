@@ -148,3 +148,11 @@ Erstellte Artefakte:
 
 - **Pilot-Content: NDA/Geheimhaltungsvereinbarung** (`apps/api/prisma/fixtures/nda.json`)
   Vollständiges Template für NDA (Definition vertraulicher Informationen, Schutzpflichten, Ausnahmen, Vertragsstrafe, Laufzeit). Interview-Flow. Einseitige und gegenseitige NDAs via Conditional Logic.
+
+## Sprint 13 (2026-02-12) — OpenSearch Volltextsuche
+
+- OpenSearch Schema-Mapping (`apps/api/src/services/search/index-mappings.ts`) — Clause + Template Indices, German Analyzer, Multi-Field Mappings, Tenant-scoped Aliases.
+- Search-Client + Indexing-Service (`apps/api/src/services/search/search-client.ts`, `indexing-service.ts`) — Index/Update/Remove, Bulk-Indexing, Reindex-All.
+- Search API (`apps/api/src/modules/search/routes.ts`) — Faceted Search (tags, jurisdiction, legalArea), Autocomplete/Suggest, Tenant-Isolation.
+- SQL-Fallback (`apps/api/src/services/search/sql-fallback.ts`) — Prisma-basierte Suche wenn FEATURE_OPENSEARCH=false.
+- Search-Tests (`apps/api/src/modules/search/__tests__/search-routes.test.ts`).

@@ -1,0 +1,36 @@
+{{- if .Values.hpa.enabled -}}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "servanda-office.fullname" . }}-export-worker-hpa
+  namespace: {{ include "servanda-office.namespace" . }}
+  labels:
+    {{- include "servanda-office.exportWorker.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "servanda-office.fullname" . }}-export-worker
+  minReplicas: {{ .Values.hpa.worker.minReplicas }}
+  maxReplicas: {{ .Values.hpa.worker.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.hpa.worker.targetCPUUtilizationPercentage }}
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: {{ .Values.hpa.worker.scaleDownStabilizationSeconds }}
+      policies:
+        - type: Percent
+          value: 25
+          periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: {{ .Values.hpa.worker.scaleUpStabilizationSeconds }}
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 60
+{{- end }}

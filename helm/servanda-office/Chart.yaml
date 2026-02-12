@@ -1,0 +1,20 @@
+apiVersion: v2
+name: servanda-office
+description: >-
+  Multi-Tenant LegalTech Platform for contract creation and management.
+  Deploys API server, web frontend, export worker, and optional infrastructure
+  services (PostgreSQL, Keycloak, MinIO, OpenSearch).
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - legaltech
+  - contract-management
+  - multi-tenant
+  - servanda
+home: https://github.com/cai-gmbh-dev/servanda-office
+maintainers:
+  - name: Team 07 - DevOps & On-Prem
+    email: devops@servanda.de
+sources:
+  - https://github.com/cai-gmbh-dev/servanda-office

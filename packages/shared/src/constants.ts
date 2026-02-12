@@ -28,4 +28,10 @@ export const RULE_EVALUATION_TIMEOUT_MS = 5_000;
 
 export const FEATURE_FLAGS = {
   odt_export_enabled: false,
+  opensearch_enabled: false,
 } as const;
+
+// === Search ===
+
+export const SEARCH_MAX_SUGGEST_RESULTS = 10;
+export const SEARCH_MAX_FACET_BUCKETS = 50;

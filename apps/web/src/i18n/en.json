@@ -50,8 +50,20 @@
     "retry": "Retry",
     "failed": "Export failed"
   },
+  "notifications": {
+    "progress_saved": "Progress saved",
+    "contract_completed": "Contract completed",
+    "export_started": "Export started",
+    "template_selected": "Template selected",
+    "dismiss": "Dismiss notification",
+    "type_success": "Success",
+    "type_error": "Error",
+    "type_warning": "Warning",
+    "type_info": "Information"
+  },
   "common": {
     "loading": "Loading...",
+    "page_loading": "Loading...",
     "error": "An error occurred",
     "save": "Save",
     "cancel": "Cancel",

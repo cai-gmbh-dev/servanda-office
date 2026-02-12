@@ -50,8 +50,20 @@
     "retry": "Erneut versuchen",
     "failed": "Export fehlgeschlagen"
   },
+  "notifications": {
+    "progress_saved": "Fortschritt gespeichert",
+    "contract_completed": "Vertrag abgeschlossen",
+    "export_started": "Export gestartet",
+    "template_selected": "Vorlage ausgewählt",
+    "dismiss": "Benachrichtigung schliessen",
+    "type_success": "Erfolg",
+    "type_error": "Fehler",
+    "type_warning": "Warnung",
+    "type_info": "Information"
+  },
   "common": {
     "loading": "Laden...",
+    "page_loading": "Wird geladen...",
     "error": "Ein Fehler ist aufgetreten",
     "save": "Speichern",
     "cancel": "Abbrechen",

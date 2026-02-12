@@ -1,7 +1,7 @@
 # Sprint-Status – Übersicht
 
-**Stand:** 2026-02-11
-**Sprint:** 12 ABGESCHLOSSEN (Final MVP Release + Pilot-Readiness)
+**Stand:** 2026-02-12
+**Sprint:** 13 ABGESCHLOSSEN (Event-System + OpenSearch + Enterprise-Readiness)
 
 ## Ziele
 
@@ -150,10 +150,25 @@
 - [x] Blue/Green Deployment-Strategie → `k8s/scripts/blue-green-deploy.sh`
 - [x] HPA-Tuning → `k8s/overlays/prod/hpa-tuned.yaml`
 
+### Sprint 13 (2026-02-12)
+
+- [x] EventBus Interface + InProcessEventBus + Audit-Consumer → `packages/shared/src/event-bus.ts`, `apps/api/src/events/audit-consumer.ts`
+- [x] EventBus Prometheus Metriken → `apps/api/src/modules/metrics/event-metrics.ts`
+- [x] SCIM 2.0 Provisioning Service → `apps/api/src/modules/scim/routes.ts`
+- [x] SSE-KMS per-Tenant Encryption Evaluation → `docs/knowledge/sse-kms-evaluation-v1.md`
+- [x] SAML/OIDC Federation Design → `docs/knowledge/saml-oidc-federation-v1.md`
+- [x] OpenSearch Schema-Mapping + Indexing-Service + Search API → `apps/api/src/services/search/`, `apps/api/src/modules/search/routes.ts`
+- [x] Code-Splitting Lazy Loading + Notification Toast System → `apps/web/src/App.tsx`, `apps/web/src/components/`
+- [x] Export Result-Caching + Dynamic AutoScaler + Prometheus Metrics → `apps/export-worker/src/cache/result-cache.ts`, `apps/export-worker/src/scaling/auto-scaler.ts`
+- [x] Soak-Test + Large-Dataset Load-Test + RUM Baseline → `apps/api/src/__tests__/load/`, `apps/web/src/utils/rum.ts`
+- [x] Process Metrics Endpoint → `apps/api/src/modules/metrics/process-metrics.ts`
+- [x] Helm Charts v1 + OpenSearch Docker-Compose → `helm/servanda-office/`, `docker/opensearch/`
+- [x] GitOps-Evaluierung ArgoCD → `docs/knowledge/gitops-evaluation-v1.md`
+
 ## Offen
 
-- **MVP v1.0 Release-Ready.** Alle 12 Sprints abgeschlossen (100+ Deliverables).
-- Nächste Phase: Pilot-Rollout mit ausgewählten Kanzleien.
+- **Sprint 13 abgeschlossen.** Event-System, OpenSearch, Enterprise-Security, Helm, Performance-Monitoring.
+- Nächste Phase: Phase 2 Enterprise Features (SAML Integration, OpenSearch Produktiv, Signatur-Integration).
 
 ## Risiken/Blocker
 

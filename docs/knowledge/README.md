@@ -38,6 +38,9 @@ Ziel: Ein gemeinsamer Ort für Entscheidungswissen, Projektgedächtnis und team�
 - `cross-module-events-v1.md` – Cross-Module-Event-Evaluierung (EventEmitter vs. Mediator vs. Broker, Phase-2-Empfehlung)
 - `keycloak-backup-strategy-v1.md` – Keycloak Backup-Strategie (Realm-Export-Automatisierung, Recovery-Playbook)
 - `qa-signoff-v1.md` – Final QA Sign-Off MVP v1.0 (Quality Gates, Test-Abdeckung, Release-Empfehlung)
+- `sse-kms-evaluation-v1.md` – SSE-KMS per-Tenant Encryption Evaluierung (AWS KMS, Vault Transit, BYOK, Empfehlung)
+- `saml-oidc-federation-v1.md` – SAML/OIDC Federation Design (Enterprise SSO, IdP-Brokering, JIT-Provisioning)
+- `gitops-evaluation-v1.md` – GitOps-Evaluierung (ArgoCD vs. Flux vs. Manual, Empfehlung, Migration-Path)
 - `project-memory.md` – Laufendes Gedächtnis (Meilensteine, offene Risiken, Learnings)
 - `glossar.md` – Einheitliche Begriffe
 

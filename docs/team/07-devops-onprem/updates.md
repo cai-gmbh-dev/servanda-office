@@ -235,3 +235,49 @@ Erstellte Artefakte:
 
 - **HPA-Tuning** (`k8s/overlays/prod/hpa-tuned.yaml`, `hpa-api.yaml`, `hpa-worker.yaml`)
   Optimierte HorizontalPodAutoscaler basierend auf k6 Load-Tests. API: min 2, max 8, CPU 70%, Memory 80%. Worker: min 1, max 4, CPU 60%. Scale-Down-Stabilisierung 300s, Scale-Up 60s.
+
+## 2026-02-12 (Sprint 13)
+
+**Sprint-13 Deliverables abgeschlossen.**
+
+Erstellte Artefakte:
+
+- **Helm Charts v1** (`helm/servanda-office/`)
+  - `Chart.yaml`: appVersion 1.0.0, Typ application, Maintainer Team 07.
+  - `values.yaml`: Vollständige Konfiguration für alle Szenarien (dev, staging, prod, on-prem). Global-Settings (namespace, imagePullPolicy, imageTag). API (2 Replicas, Health-Probes, OIDC, S3). Web (2 Replicas, nginx). ExportWorker (1 Replica, pgboss-Concurrency). PostgreSQL (enabled/disabled für dev vs. prod). Keycloak (enabled, Realm-Import). MinIO (enabled für dev/onprem). OpenSearch (disabled by default, Phase 2). Ingress (nginx, TLS, Rate-Limiting). HPA (API min 2/max 8 CPU 70%, Worker min 1/max 4 CPU 80%). Monitoring (Prometheus ServiceMonitor, Grafana Dashboards). Secrets (in-chart base64 oder External Secrets Operator).
+  - `templates/_helpers.tpl`: Standard Helm-Helpers (name, fullname, chart, labels, selectorLabels, component-spezifische Labels, Image-Helper, Namespace-Helper, Secret/ConfigMap-Name-Helper).
+  - `templates/api-deployment.yaml`: API Deployment mit ConfigMap/Secret-Refs, Health-Probes, SecurityContext, Checksum-Annotations für Rolling Updates.
+  - `templates/api-service.yaml`: ClusterIP Service Port 3000.
+  - `templates/web-deployment.yaml`: Web Deployment mit nginx, SecurityContext.
+  - `templates/web-service.yaml`: ClusterIP Service Port 80.
+  - `templates/export-worker-deployment.yaml`: Worker Deployment mit DB/S3-Secrets, SecurityContext.
+  - `templates/ingress.yaml`: Conditional Ingress mit TLS, nginx-Annotations, API/Web-Routing.
+  - `templates/hpa-api.yaml`: Conditional HPA mit CPU/Memory-Metrics, Scale-Down/Up-Behavior.
+  - `templates/hpa-worker.yaml`: Conditional HPA für Export Worker.
+  - `templates/configmap.yaml`: Shared ConfigMap (NODE_ENV, PORT, S3_BUCKET, FEATURE_ODT_EXPORT, OIDC_ISSUER_URL).
+  - `templates/secrets.yaml`: Conditional Secrets (DB URL, S3 Credentials, OIDC Secret) — nur wenn External Secrets disabled.
+  - `templates/NOTES.txt`: Post-Install-Anweisungen mit Komponenten-Übersicht, Quick-Check-Commands.
+
+- **Helm Chart Tests** (`helm/servanda-office/tests/`)
+  - `test-api-deployment.yaml`: Helm Test-Pod, prüft API Health-Endpoint via wget (60s Timeout, 12 Retries).
+  - `test-web-deployment.yaml`: Helm Test-Pod, prüft Web Frontend-Erreichbarkeit.
+
+- **Helm Validation Script** (`helm/validate.sh`)
+  Bash-Script: Helm lint, Template-Rendering mit Default-Values, HPA disabled, Ingress disabled, OpenSearch enabled, External Secrets. 7 Validierungsschritte. Exit-Code 0/1 für CI.
+
+- **OpenSearch Docker-Compose Integration**
+  - `docker/opensearch/docker-compose.opensearch.yml`: Standalone Compose-Datei mit OpenSearch 2.11.0 (Single-Node, Security disabled), OpenSearch Dashboards, Index-Initialisierung (3 Indizes: servanda-clauses, servanda-templates, servanda-contracts mit German Analyzer).
+  - `docker/docker-compose.yml` aktualisiert: OpenSearch + Dashboards unter `profiles: [opensearch]`, Volume opensearch_data.
+
+- **GitOps Evaluation v1** (`docs/knowledge/gitops-evaluation-v1.md`)
+  Vergleich: ArgoCD vs. Flux v2 vs. Manual kubectl. Evaluation-Matrix (10 Kriterien, gewichtet). Empfehlung: ArgoCD für Cloud + On-Prem (einheitliches Tooling). Migrations-Pfad in 4 Phasen (Sprint 14-17). Security-Considerations (RBAC, SSO, Secrets). Cost/Benefit-Analyse.
+
+- **ArgoCD Application Manifest** (`k8s/argocd/application.yaml`)
+  AppProject mit RBAC (admin + readonly Rollen). Application mit Helm-Source, Prod-Parameter-Overrides, Automated Sync (prune + selfHeal), Retry-Policy (3 Versuche), ignoreDifferences für HPA-managed Replicas. ServerSideApply aktiviert.
+
+Nächste Schritte Team 07:
+
+- Sprint 14: ArgoCD Installation + Keycloak-SSO-Integration.
+- Environment-spezifische Values-Files (values-dev.yaml, values-staging.yaml, values-prod.yaml).
+- OpenSearch K8s-Manifeste (StatefulSet + Service) für Helm Chart ergänzen.
+- Helm Chart in CI/CD-Pipeline integrieren (lint + template als PR-Gate).

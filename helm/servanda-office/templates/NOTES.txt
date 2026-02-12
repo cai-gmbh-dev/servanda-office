@@ -1,0 +1,72 @@
+===========================================================================
+  Servanda Office v{{ .Chart.AppVersion }} has been deployed!
+===========================================================================
+
+Release: {{ .Release.Name }}
+Namespace: {{ include "servanda-office.namespace" . }}
+
+Components:
+  - API Server:     {{ include "servanda-office.fullname" . }}-api
+  - Web Frontend:   {{ include "servanda-office.fullname" . }}-web
+  - Export Worker:  {{ include "servanda-office.fullname" . }}-export-worker
+
+{{- if .Values.ingress.enabled }}
+
+Ingress:
+  Host: {{ .Values.ingress.host }}
+  {{- if .Values.ingress.tls.enabled }}
+  TLS:  Enabled (secret: {{ .Values.ingress.tls.secretName }})
+  {{- end }}
+  URL:  https://{{ .Values.ingress.host }}
+{{- end }}
+
+{{- if .Values.hpa.enabled }}
+
+Autoscaling:
+  API:    {{ .Values.hpa.api.minReplicas }}-{{ .Values.hpa.api.maxReplicas }} replicas (CPU target: {{ .Values.hpa.api.targetCPUUtilizationPercentage }}%)
+  Worker: {{ .Values.hpa.worker.minReplicas }}-{{ .Values.hpa.worker.maxReplicas }} replicas (CPU target: {{ .Values.hpa.worker.targetCPUUtilizationPercentage }}%)
+{{- end }}
+
+Infrastructure:
+  {{- if .Values.postgresql.enabled }}
+  PostgreSQL: In-cluster ({{ .Values.postgresql.image.repository }}:{{ .Values.postgresql.image.tag }})
+  {{- else }}
+  PostgreSQL: External (configure DATABASE_URL secret)
+  {{- end }}
+  {{- if .Values.keycloak.enabled }}
+  Keycloak:   In-cluster ({{ .Values.keycloak.image.repository }}:{{ .Values.keycloak.image.tag }})
+  {{- else }}
+  Keycloak:   External (configure OIDC_ISSUER_URL)
+  {{- end }}
+  {{- if .Values.minio.enabled }}
+  MinIO:      In-cluster (bucket: {{ .Values.minio.bucketName }})
+  {{- else }}
+  MinIO:      Disabled (using external S3)
+  {{- end }}
+  {{- if .Values.opensearch.enabled }}
+  OpenSearch:  In-cluster ({{ .Values.opensearch.image.repository }}:{{ .Values.opensearch.image.tag }})
+  {{- else }}
+  OpenSearch:  Disabled
+  {{- end }}
+
+---------------------------------------------------------------------------
+Quick checks:
+
+  # Verify pods are running
+  kubectl get pods -n {{ include "servanda-office.namespace" . }}
+
+  # Check API health
+  kubectl port-forward svc/{{ include "servanda-office.fullname" . }}-api 3000:3000 -n {{ include "servanda-office.namespace" . }}
+  curl http://localhost:3000/api/health
+
+  # View logs
+  kubectl logs -l app.kubernetes.io/component=api -n {{ include "servanda-office.namespace" . }} --tail=50
+
+{{- if .Values.secrets.external.enabled }}
+
+WARNING: External Secrets Operator is enabled.
+  Ensure the ClusterSecretStore "{{ .Values.secrets.external.secretStoreName }}" exists
+  and the corresponding secrets are configured in your secrets backend.
+{{- end }}
+
+---------------------------------------------------------------------------

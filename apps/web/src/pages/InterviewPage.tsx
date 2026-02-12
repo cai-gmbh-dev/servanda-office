@@ -17,6 +17,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { QuestionInput, evaluateConditions } from '../components/QuestionInput';
 import { LivePreviewPanel } from '../components/LivePreviewPanel';
+import { useNotifications } from '../hooks/useNotifications';
 import type { Question } from '../components/QuestionInput';
 
 interface ContractDetail {
@@ -63,6 +64,7 @@ const AUTO_SAVE_DELAY = 2000;
 export function InterviewPage() {
   const { templateId, id } = useParams();
   const navigate = useNavigate();
+  const { notify } = useNotifications();
 
   const [contract, setContract] = useState<ContractDetail | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -165,13 +167,14 @@ export function InterviewPage() {
           answers: answersRef.current,
           selectedSlots: slotsRef.current,
         });
+        notify('success', 'Fortschritt gespeichert', { duration: 3000 });
       } catch {
         // Silent fail — will retry on next change
       } finally {
         setSaving(false);
       }
     }, AUTO_SAVE_DELAY);
-  }, [contract]);
+  }, [contract, notify]);
 
   function handleAnswerChange(key: string, value: unknown) {
     setAnswers((prev) => ({ ...prev, [key]: value }));
@@ -225,12 +228,13 @@ export function InterviewPage() {
       setSavedFeedback(true);
       if (savedFeedbackTimerRef.current) clearTimeout(savedFeedbackTimerRef.current);
       savedFeedbackTimerRef.current = setTimeout(() => setSavedFeedback(false), 2000);
+      notify('success', 'Fortschritt gespeichert', { duration: 3000 });
     } catch {
       // Silent fail
     } finally {
       setSaving(false);
     }
-  }, [contract]);
+  }, [contract, notify]);
 
   // --- Keyboard navigation ---
   useEffect(() => {

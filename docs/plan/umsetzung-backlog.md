@@ -118,6 +118,26 @@ Ziel: Den strategischen Umsetzungsplan in konkrete, teamübergreifende Arbeitspa
 - [x] Blue/Green Deployment-Strategie (Owner: Team 07, Ref: `k8s/scripts/blue-green-deploy.sh`) ✓ 2026-02-11
 - [x] HPA-Tuning basierend auf k6 Load-Tests (Owner: Team 07, Ref: `k8s/overlays/prod/hpa-tuned.yaml`) ✓ 2026-02-11
 
+## Sprint 13 (Event-System + OpenSearch + Enterprise-Readiness)
+- [x] EventBus Interface + InProcessEventBus + Audit-Consumer (Owner: Team 01, Ref: `packages/shared/src/event-bus.ts`, `apps/api/src/events/audit-consumer.ts`) ✓ 2026-02-12
+- [x] EventBus Prometheus Metriken (Owner: Team 01, Ref: `apps/api/src/modules/metrics/event-metrics.ts`) ✓ 2026-02-12
+- [x] SCIM 2.0 Provisioning Service (Owner: Team 02, Ref: `apps/api/src/modules/scim/routes.ts`) ✓ 2026-02-12
+- [x] SSE-KMS per-Tenant Encryption Evaluation (Owner: Team 02, Ref: `docs/knowledge/sse-kms-evaluation-v1.md`) ✓ 2026-02-12
+- [x] SAML/OIDC Federation Design (Owner: Team 02, Ref: `docs/knowledge/saml-oidc-federation-v1.md`) ✓ 2026-02-12
+- [x] OpenSearch Schema-Mapping + Indexing-Service (Owner: Team 03, Ref: `apps/api/src/services/search/`) ✓ 2026-02-12
+- [x] Search API mit Faceted Search + SQL-Fallback (Owner: Team 03, Ref: `apps/api/src/modules/search/routes.ts`) ✓ 2026-02-12
+- [x] Code-Splitting Lazy Loading + LoadingSpinner (Owner: Team 04, Ref: `apps/web/src/App.tsx`, `apps/web/src/components/LoadingSpinner.tsx`) ✓ 2026-02-12
+- [x] Notification Toast System (Owner: Team 04, Ref: `apps/web/src/components/NotificationToast.tsx`, `apps/web/src/hooks/useNotifications.ts`) ✓ 2026-02-12
+- [x] Export Result-Caching (SHA-256 Hash-based) (Owner: Team 05, Ref: `apps/export-worker/src/cache/result-cache.ts`) ✓ 2026-02-12
+- [x] Dynamic Worker Concurrency AutoScaler (Owner: Team 05, Ref: `apps/export-worker/src/scaling/auto-scaler.ts`) ✓ 2026-02-12
+- [x] Export Prometheus Metrics Server (Owner: Team 05, Ref: `apps/export-worker/src/metrics/export-metrics.ts`) ✓ 2026-02-12
+- [x] Soak-Test + Large-Dataset Load-Test (Owner: Team 06, Ref: `apps/api/src/__tests__/load/soak-test.js`) ✓ 2026-02-12
+- [x] RUM (Real User Monitoring) Baseline (Owner: Team 06, Ref: `apps/web/src/utils/rum.ts`, `apps/api/src/modules/metrics/rum-routes.ts`) ✓ 2026-02-12
+- [x] Process Metrics Endpoint (Owner: Team 06, Ref: `apps/api/src/modules/metrics/process-metrics.ts`) ✓ 2026-02-12
+- [x] Helm Charts v1 (Owner: Team 07, Ref: `helm/servanda-office/`) ✓ 2026-02-12
+- [x] OpenSearch Docker-Compose (Owner: Team 07, Ref: `docker/opensearch/docker-compose.opensearch.yml`) ✓ 2026-02-12
+- [x] GitOps-Evaluierung ArgoCD (Owner: Team 07, Ref: `docs/knowledge/gitops-evaluation-v1.md`) ✓ 2026-02-12
+
 ## Definition of Ready (DoR)
 - User Story mit Akzeptanzkriterien und betroffenen Teams dokumentiert
 - Abhängigkeiten + Risiken benannt

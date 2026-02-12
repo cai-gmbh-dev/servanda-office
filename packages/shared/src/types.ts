@@ -81,6 +81,7 @@ export type AuditAction =
   | 'branding.style_template.delete'
   | 'branding.logo.upload'
   | 'branding.logo.delete'
+  | 'search.reindex'
   | 'session.fingerprint_mismatch'
   | 'session.logout'
   | 'tenant.settings_change';

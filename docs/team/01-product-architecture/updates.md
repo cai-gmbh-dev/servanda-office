@@ -249,3 +249,10 @@ Sprint-12 Aktivitäten:
 - Prisma-Client regeneriert für `batchId`-Feld in ExportJob.
 
 **MVP v1.0 ist release-ready. Alle 12 Sprints mit 100+ Deliverables abgeschlossen.**
+
+## Sprint 13 (2026-02-12) — Event-System + Metriken
+
+- EventBus Interface + InProcessEventBus (`packages/shared/src/event-bus.ts`) — DomainEvent Types, publish/subscribe, Error-Isolation, Singleton, Stats.
+- Audit-Consumer (`apps/api/src/events/audit-consumer.ts`) — Event-driven Audit-Logging als erster EventBus-Consumer.
+- EventBus Prometheus Metriken (`apps/api/src/modules/metrics/event-metrics.ts`) — published_total, errors_total, handlers_registered, last_published_timestamp.
+- EventBus-Tests (`packages/shared/src/__tests__/event-bus.test.ts`) — publish/subscribe, error isolation, stats, concurrency.

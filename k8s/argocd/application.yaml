@@ -1,0 +1,163 @@
+# =============================================================================
+# ArgoCD Application — Servanda Office
+# =============================================================================
+# This manifest configures ArgoCD to deploy and manage the Servanda Office
+# Helm chart from the Git repository.
+#
+# Prerequisites:
+#   - ArgoCD installed in the 'argocd' namespace
+#   - ArgoCD has read access to the Git repository
+#   - Target namespace exists or ArgoCD has permissions to create it
+#
+# Usage:
+#   kubectl apply -f k8s/argocd/application.yaml
+#
+# Verify:
+#   argocd app get servanda-office
+#   argocd app sync servanda-office
+# =============================================================================
+
+---
+# ArgoCD Project — restricts what the Application can deploy
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: servanda-office
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: servanda-office
+    app.kubernetes.io/managed-by: argocd
+  # Finalizer ensures project is not deleted while Applications reference it
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Servanda Office LegalTech Platform
+  # Source repositories allowed for this project
+  sourceRepos:
+    - 'https://github.com/cai-gmbh-dev/servanda-office.git'
+  # Destination clusters and namespaces allowed
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: servanda-office
+    - server: https://kubernetes.default.svc
+      namespace: servanda-office-dev
+    - server: https://kubernetes.default.svc
+      namespace: servanda-office-staging
+  # Cluster-scoped resources the project is allowed to manage
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+  # Namespace-scoped resources the project is allowed to manage
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  # Roles for RBAC
+  roles:
+    - name: admin
+      description: Full access to Servanda Office deployments
+      policies:
+        - p, proj:servanda-office:admin, applications, *, servanda-office/*, allow
+      groups:
+        - servanda-admins
+    - name: readonly
+      description: Read-only access for monitoring
+      policies:
+        - p, proj:servanda-office:readonly, applications, get, servanda-office/*, allow
+      groups:
+        - servanda-developers
+
+---
+# ArgoCD Application — Production (main branch, Helm chart)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: servanda-office
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: servanda-office
+    app.kubernetes.io/managed-by: argocd
+    environment: production
+  # Finalizer ensures resources are cleaned up on Application deletion
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: servanda-office
+
+  # Source: Helm chart from Git repository
+  source:
+    repoURL: https://github.com/cai-gmbh-dev/servanda-office.git
+    targetRevision: main
+    path: helm/servanda-office
+    helm:
+      # Values files to use (relative to chart path)
+      valueFiles:
+        - values.yaml
+      # Inline value overrides for production
+      parameters:
+        - name: global.imageTag
+          value: "1.0.0"
+        - name: global.imagePullPolicy
+          value: "IfNotPresent"
+        - name: postgresql.enabled
+          value: "false"
+        - name: minio.enabled
+          value: "false"
+        - name: keycloak.enabled
+          value: "false"
+        - name: hpa.enabled
+          value: "true"
+        - name: ingress.enabled
+          value: "true"
+        - name: ingress.host
+          value: "app.servanda.de"
+        - name: secrets.external.enabled
+          value: "true"
+        - name: monitoring.prometheus.enabled
+          value: "true"
+
+  # Destination: in-cluster, servanda-office namespace
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: servanda-office
+
+  # Sync policy: automated with self-heal and prune
+  syncPolicy:
+    automated:
+      # Automatically prune resources that are no longer in Git
+      prune: true
+      # Automatically fix drift (manual changes in cluster are reverted)
+      selfHeal: true
+      # Allow empty apps (no resources) — useful during initial setup
+      allowEmpty: false
+    syncOptions:
+      # Create namespace if it doesn't exist
+      - CreateNamespace=true
+      # Apply out-of-sync resources only (faster sync)
+      - ApplyOutOfSyncOnly=true
+      # Server-side apply for better conflict resolution
+      - ServerSideApply=true
+    # Retry policy for failed syncs
+    retry:
+      limit: 3
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+
+  # Ignore differences for fields that are managed by controllers
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas
+    - group: autoscaling
+      kind: HorizontalPodAutoscaler
+      jsonPointers:
+        - /spec/metrics
+
+  # Health checks and notifications
+  info:
+    - name: url
+      value: https://app.servanda.de
+    - name: team
+      value: Team 07 - DevOps & On-Prem

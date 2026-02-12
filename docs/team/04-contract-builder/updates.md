@@ -203,3 +203,12 @@ Erstellte Code-Artefakte:
 
 - **i18n-Tests** (`apps/web/src/i18n/__tests__/i18n.test.ts`)
   Tests für Translation-Lookup, Fallback, Interpolation, Locale-Switch.
+
+## Sprint 13 (2026-02-12) — Code-Splitting + Notifications
+
+- Code-Splitting Lazy Loading (`apps/web/src/App.tsx`) — React.lazy() + Suspense für CatalogPage, ContractsPage, InterviewPage, ReviewPage.
+- LoadingSpinner (`apps/web/src/components/LoadingSpinner.tsx`) — Zentrierter Spinner, CSS-Animation, ARIA role="status".
+- Notification Toast System (`apps/web/src/components/NotificationToast.tsx`) — success/error/warning/info, Auto-Dismiss 5s, Max 3 Stack, Slide-in Animation, ARIA role="alert".
+- useNotifications Hook (`apps/web/src/hooks/useNotifications.ts`) — React Context + Provider, notify(type, message), Queue-Management.
+- Notifications integriert in InterviewPage (Auto-Save), ReviewPage (Completion, Export), CatalogPage (Template-Auswahl).
+- Tests: NotificationToast (8 Tests), LoadingSpinner (3 Tests).

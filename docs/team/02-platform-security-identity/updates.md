@@ -233,3 +233,10 @@ Erstellte Artefakte:
 
 - **Keycloak Backup-Strategie** (`docs/knowledge/keycloak-backup-strategy-v1.md`)
   Realm-Export-Automatisierung: K8s CronJob täglicher Export um 03:00 UTC via `kcadm.sh`. S3-Upload mit Komprimierung. Recovery-Playbook. Retention: 30 Tage täglich, 1 Jahr monatlich.
+
+## Sprint 13 (2026-02-12) — Enterprise Security Foundations
+
+- SCIM 2.0 Provisioning Service (`apps/api/src/modules/scim/routes.ts`) — RFC 7644, 7 Endpoints (Users CRUD, ServiceProviderConfig, Schemas), API-Key Auth, Tenant-scoped.
+- SSE-KMS per-Tenant Encryption Evaluation (`docs/knowledge/sse-kms-evaluation-v1.md`) — AWS KMS vs. Vault Transit vs. BYOK, Kosten/Compliance/Performance-Vergleich.
+- SAML/OIDC Federation Design (`docs/knowledge/saml-oidc-federation-v1.md`) — Keycloak Identity Brokering, Per-Tenant IdP, JIT-Provisioning, Role-Mapping.
+- SCIM-Tests (`apps/api/src/modules/scim/__tests__/scim-routes.test.ts`).

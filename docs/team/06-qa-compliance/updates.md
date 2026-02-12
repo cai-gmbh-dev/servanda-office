@@ -276,3 +276,20 @@ Erstellte Artefakte:
 
 - **Final QA Sign-Off** (`docs/knowledge/qa-signoff-v1.md`)
   MVP v1.0 Release-Freigabe: Alle Quality Gates bestanden (ESLint 0, TS 0, Coverage ~85%, axe-core 0). Test-Abdeckung: Unit (43+), Integration (29+), E2E (7), Security (12), Load (3), Component (4), Visual Regression (5). Empfehlung: BEREIT FÜR RELEASE.
+
+## Sprint 13 (2026-02-12) — Soak-Tests + RUM + Process-Metrics
+
+- **Soak-Tests** (`apps/api/src/__tests__/load/soak-test.js`)
+  k6 Langzeit-Lasttest (30min bei konstanter Last, 10 VUs). Überwacht Memory-Leaks, Connection-Pool-Exhaustion, Latenz-Drift. Thresholds: P95 <1s, Error-Rate <0.5%, Memory-Growth <50MB über Testdauer. Endpunkte: Content-API, Contract-API, Export-API.
+
+- **Large-Dataset Load-Tests** (`apps/api/src/__tests__/load/large-dataset-test.js`)
+  k6 Lasttest mit großen Datenmengen (100+ Templates, 1000+ Clauses, 500+ Contracts). Szenarien: Catalog-Browse (Pagination), Search (Volltextsuche), Concurrent-Contract-Creation, Bulk-Export. Thresholds: P95 <2s, Error-Rate <1%.
+
+- **RUM Baseline** (`apps/web/src/utils/rum.ts`)
+  Leichtgewichtiges Real User Monitoring: Core Web Vitals (LCP, FID, CLS, INP, TTFB) via PerformanceObserver. Route-spezifische Metriken. Beacon-basiertes Reporting an /api/v1/metrics/rum. Batch-Buffering (5s Intervall). Keine externe Dependency.
+
+- **RUM API** (`apps/api/src/modules/metrics/rum-routes.ts`)
+  POST /api/v1/metrics/rum — RUM-Daten-Ingestion (Zod-Validierung). GET /api/v1/metrics/rum/summary — Aggregierte Metriken (P50, P75, P95, P99) nach Metrik-Name und Route. In-Memory-Aggregation mit Sliding-Window.
+
+- **Process-Metrics** (`apps/api/src/modules/metrics/process-metrics.ts`)
+  GET /api/v1/metrics/process — Node.js Process-Metriken: Memory (RSS, Heap Used/Total, External, Array Buffers), CPU (User, System), Event-Loop-Delay (Sampling via setTimeout). Prometheus-kompatibles Format. Für Grafana-Dashboard.

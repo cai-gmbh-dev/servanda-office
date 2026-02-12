@@ -16,6 +16,12 @@ import { brandingRouter } from './modules/export/branding-routes';
 import { batchExportRouter } from './modules/export/batch-routes';
 import { logoUploadHandler } from './modules/export/logo-upload';
 import { reviewerRouter } from './modules/content/reviewer';
+import { searchRouter } from './modules/search/routes';
+import { scimRouter } from './modules/scim/routes';
+import { eventMetricsRouter } from './modules/metrics/event-metrics';
+import { rumRouter } from './modules/metrics/rum-routes';
+import { processMetricsRouter } from './modules/metrics/process-metrics';
+import { registerAuditConsumer } from './events/audit-consumer';
 
 const app = express();
 const port = Number(process.env.PORT) || 3000;
@@ -62,6 +68,13 @@ app.use('/api', (_req: Request, res: Response, next: NextFunction) => {
 app.use('/api/health', healthRouter);
 app.use('/api/v1/health', healthRouter);
 
+// --- Metrics (no auth — scraped by Prometheus / public RUM) ---
+app.use('/api/v1/metrics/events', eventMetricsRouter);
+app.use('/api/v1/metrics/rum', rumRouter);
+
+// --- SCIM Provisioning (own bearer-token auth — before JWT middleware) ---
+app.use('/api/v1/scim', scimRouter);
+
 // --- Authentication (JWT in prod, headers in dev) ---
 app.use('/api', authenticate);
 app.use('/api/v1', authenticate);
@@ -78,6 +91,8 @@ app.use('/api/v1/export-jobs', dlqRouter);
 app.use('/api/v1/export-jobs', batchExportRouter);
 app.use('/api/v1/export', brandingRouter);
 app.post('/api/v1/export/branding/style-templates/:id/logo', logoUploadHandler);
+app.use('/api/v1/search', searchRouter);
+app.use('/api/v1/metrics/process', processMetricsRouter);
 
 // Legacy routes (backward-compatible, same handlers)
 app.use('/api/identity', identityRouter);
@@ -90,9 +105,13 @@ app.use('/api/export-jobs', dlqRouter);
 app.use('/api/export-jobs', batchExportRouter);
 app.use('/api/export', brandingRouter);
 app.post('/api/export/branding/style-templates/:id/logo', logoUploadHandler);
+app.use('/api/search', searchRouter);
 
 // --- Error Handler ---
 app.use(errorHandler);
+
+// --- Event System Initialization ---
+registerAuditConsumer();
 
 app.listen(port, () => {
   logger.info({ port, apiVersion: API_VERSION }, `Servanda Office API v${API_VERSION} listening on port ${port}`);

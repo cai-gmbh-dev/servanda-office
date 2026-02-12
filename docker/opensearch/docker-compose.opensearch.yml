@@ -1,0 +1,219 @@
+version: '3.9'
+
+# =============================================================================
+# Servanda Office — OpenSearch Stack (Phase 2: Full-Text Search)
+# =============================================================================
+# Usage:
+#   docker compose -f docker/docker-compose.yml -f docker/opensearch/docker-compose.opensearch.yml up
+# Or via profile in the main docker-compose.yml:
+#   docker compose --profile opensearch up
+# =============================================================================
+
+services:
+  # --- OpenSearch (single-node, dev mode) ---
+  opensearch:
+    image: opensearchproject/opensearch:2.11.0
+    container_name: servanda-opensearch
+    environment:
+      - cluster.name=servanda-search
+      - node.name=opensearch-node1
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+      # Disable security plugin for local development
+      - DISABLE_SECURITY_PLUGIN=true
+      - DISABLE_INSTALL_DEMO_CONFIG=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    ports:
+      - '9200:9200'
+      - '9600:9600'
+    volumes:
+      - opensearch_data:/usr/share/opensearch/data
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -sf http://localhost:9200/_cluster/health || exit 1']
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    networks:
+      - default
+
+  # --- OpenSearch Dashboards (optional dev UI) ---
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:2.11.0
+    container_name: servanda-opensearch-dashboards
+    environment:
+      - OPENSEARCH_HOSTS=["http://opensearch:9200"]
+      - DISABLE_SECURITY_DASHBOARDS_PLUGIN=true
+    ports:
+      - '5601:5601'
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    networks:
+      - default
+
+  # --- Index Initialization ---
+  opensearch-init:
+    image: curlimages/curl:8.5.0
+    container_name: servanda-opensearch-init
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        echo "=== Initializing OpenSearch Indices ==="
+
+        # Wait for OpenSearch to be fully ready
+        sleep 5
+
+        # Create clause index with German analyzer
+        echo "[1/3] Creating clause index..."
+        curl -sf -X PUT "http://opensearch:9200/servanda-clauses" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "settings": {
+              "number_of_shards": 1,
+              "number_of_replicas": 0,
+              "analysis": {
+                "analyzer": {
+                  "german_custom": {
+                    "type": "custom",
+                    "tokenizer": "standard",
+                    "filter": ["lowercase", "german_normalization", "german_stemmer"]
+                  }
+                },
+                "filter": {
+                  "german_stemmer": {
+                    "type": "stemmer",
+                    "language": "german"
+                  }
+                }
+              }
+            },
+            "mappings": {
+              "properties": {
+                "tenantId": { "type": "keyword" },
+                "clauseId": { "type": "keyword" },
+                "version": { "type": "integer" },
+                "title": {
+                  "type": "text",
+                  "analyzer": "german_custom",
+                  "fields": { "keyword": { "type": "keyword" } }
+                },
+                "body": { "type": "text", "analyzer": "german_custom" },
+                "tags": { "type": "keyword" },
+                "category": { "type": "keyword" },
+                "status": { "type": "keyword" },
+                "updatedAt": { "type": "date" }
+              }
+            }
+          }' || echo "  Index may already exist"
+
+        # Create template index
+        echo ""
+        echo "[2/3] Creating template index..."
+        curl -sf -X PUT "http://opensearch:9200/servanda-templates" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "settings": {
+              "number_of_shards": 1,
+              "number_of_replicas": 0,
+              "analysis": {
+                "analyzer": {
+                  "german_custom": {
+                    "type": "custom",
+                    "tokenizer": "standard",
+                    "filter": ["lowercase", "german_normalization", "german_stemmer"]
+                  }
+                },
+                "filter": {
+                  "german_stemmer": {
+                    "type": "stemmer",
+                    "language": "german"
+                  }
+                }
+              }
+            },
+            "mappings": {
+              "properties": {
+                "tenantId": { "type": "keyword" },
+                "templateId": { "type": "keyword" },
+                "version": { "type": "integer" },
+                "name": {
+                  "type": "text",
+                  "analyzer": "german_custom",
+                  "fields": { "keyword": { "type": "keyword" } }
+                },
+                "description": { "type": "text", "analyzer": "german_custom" },
+                "category": { "type": "keyword" },
+                "status": { "type": "keyword" },
+                "updatedAt": { "type": "date" }
+              }
+            }
+          }' || echo "  Index may already exist"
+
+        # Create contract instance index
+        echo ""
+        echo "[3/3] Creating contract instance index..."
+        curl -sf -X PUT "http://opensearch:9200/servanda-contracts" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "settings": {
+              "number_of_shards": 1,
+              "number_of_replicas": 0,
+              "analysis": {
+                "analyzer": {
+                  "german_custom": {
+                    "type": "custom",
+                    "tokenizer": "standard",
+                    "filter": ["lowercase", "german_normalization", "german_stemmer"]
+                  }
+                },
+                "filter": {
+                  "german_stemmer": {
+                    "type": "stemmer",
+                    "language": "german"
+                  }
+                }
+              }
+            },
+            "mappings": {
+              "properties": {
+                "tenantId": { "type": "keyword" },
+                "contractId": { "type": "keyword" },
+                "title": {
+                  "type": "text",
+                  "analyzer": "german_custom",
+                  "fields": { "keyword": { "type": "keyword" } }
+                },
+                "templateName": { "type": "text", "analyzer": "german_custom" },
+                "status": { "type": "keyword" },
+                "createdBy": { "type": "keyword" },
+                "createdAt": { "type": "date" },
+                "updatedAt": { "type": "date" }
+              }
+            }
+          }' || echo "  Index may already exist"
+
+        echo ""
+        echo "=== OpenSearch initialization complete ==="
+    networks:
+      - default
+
+volumes:
+  opensearch_data:
+    driver: local
+
+networks:
+  default:
+    name: servanda-network
+    external: true

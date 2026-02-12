@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import { ChangelogPanel } from '../components/ChangelogPanel';
+import { useNotifications } from '../hooks/useNotifications';
 
 interface TemplateItem {
   id: string;
@@ -23,6 +24,7 @@ interface CatalogResponse {
 
 export function CatalogPage() {
   const navigate = useNavigate();
+  const { notify } = useNotifications();
   const [searchParams, setSearchParams] = useSearchParams();
   const [templates, setTemplates] = useState<TemplateItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,6 +87,7 @@ export function CatalogPage() {
 
   function handleSelect(template: TemplateItem) {
     if (!template.latestVersion) return;
+    notify('info', 'Vorlage ausgewählt', { duration: 3000 });
     navigate(`/contracts/new/${template.latestVersion.id}`);
   }
 
