@@ -10,6 +10,8 @@
  * - GET    /clauses/:id                      — Get clause with versions
  * - POST   /clauses/:id/versions             — Create new version
  * - PATCH  /clauses/:id/versions/:vid/status — Transition status (E2.S3)
+ * - POST   /clauses/batch-content            — Batch-fetch clause version content (Sprint 9)
+ * - POST   /import                           — Bulk-import clauses/templates (Sprint 11, admin-only)
  * - POST   /templates                        — Create template (E2.S2)
  * - GET    /templates                        — List templates
  * - GET    /templates/:id                    — Get template with versions
@@ -26,8 +28,9 @@ import { getTenantContext } from '../../middleware/tenant-context';
 import { requireRole } from '../../middleware/auth';
 import { auditService } from '../../services/audit.service';
 import { NotFoundError, ConflictError } from '../../middleware/error-handler';
-import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '@servanda/shared';
+import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, type AuditAction } from '@servanda/shared';
 import { validateClausePublishingGates, validateTemplatePublishingGates } from './publishing-gates';
+import { contentImportSchema, importContent } from './import';
 
 export const contentRouter = Router();
 
@@ -256,6 +259,79 @@ contentRouter.patch('/clauses/:id/versions/:vid/status', requireRole('admin', 'e
     }
 
     res.json(formatClauseVersion(version.updated));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// --- Batch Clause Content (Sprint 9 — Team 04: Live-Preview-Panel) ---
+
+const batchClauseContentSchema = z.object({
+  clauseVersionIds: z
+    .array(z.string().uuid())
+    .min(1, 'At least one clauseVersionId is required')
+    .max(50, 'Maximum 50 clauseVersionIds per request'),
+});
+
+contentRouter.post('/clauses/batch-content', async (req, res, next) => {
+  try {
+    const ctx = getTenantContext(req);
+    const input = batchClauseContentSchema.parse(req.body);
+
+    const versions = await prisma.$transaction(async (tx) => {
+      await setTenantContext(tx, ctx.tenantId);
+      return tx.clauseVersion.findMany({
+        where: {
+          id: { in: input.clauseVersionIds },
+          tenantId: ctx.tenantId,
+        },
+        select: {
+          id: true,
+          clauseId: true,
+          versionNumber: true,
+          content: true,
+          parameters: true,
+        },
+      });
+    });
+
+    res.json({
+      data: versions.map((v) => ({
+        id: v.id,
+        clauseId: v.clauseId,
+        versionNumber: v.versionNumber,
+        content: v.content,
+        parameters: v.parameters,
+      })),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ============================================================
+// BULK IMPORT (Sprint 11 — Team 03: Content Import Service)
+// ============================================================
+
+contentRouter.post('/import', requireRole('admin'), async (req, res, next) => {
+  try {
+    const ctx = getTenantContext(req);
+    const input = contentImportSchema.parse(req.body);
+
+    const report = await importContent(ctx, input);
+
+    await auditService.log(ctx, {
+      action: 'content.import' as AuditAction,
+      objectType: 'content_import',
+      objectId: ctx.tenantId,
+      details: {
+        clauses: report.summary.clauses,
+        templates: report.summary.templates,
+        interviewFlows: report.summary.interviewFlows,
+      },
+    }, { ip: req.ip, userAgent: req.headers['user-agent'] });
+
+    res.status(200).json(report);
   } catch (err) {
     next(err);
   }

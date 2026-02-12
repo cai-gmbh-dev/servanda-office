@@ -74,9 +74,15 @@ export type AuditAction =
   | 'export.fail'
   | 'export.dlq.retry'
   | 'export.dlq.archive'
+  | 'batch.export.request'
+  | 'content.import'
   | 'branding.style_template.create'
   | 'branding.style_template.update'
   | 'branding.style_template.delete'
+  | 'branding.logo.upload'
+  | 'branding.logo.delete'
+  | 'session.fingerprint_mismatch'
+  | 'session.logout'
   | 'tenant.settings_change';
 
 // === Shared Interfaces ===

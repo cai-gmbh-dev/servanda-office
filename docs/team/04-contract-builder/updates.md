@@ -133,6 +133,73 @@ Erstellte Code-Artefakte:
 Nächste Schritte Team 04:
 
 - Sprint 9: Review-Screen vor Completion implementieren.
-- Keyboard-Navigation für Interview-Flow optimieren.
-- Changelog-UI im Frontend (Abstimmung mit Team 03).
 - Batch-Clause-Content-Endpoint für Live-Preview-Integration.
+
+## 2026-02-11 (Sprint 9)
+
+**Sprint-9 Deliverables abgeschlossen.**
+
+Erstellte Code-Artefakte:
+
+- **Batch-Clause-Content-Endpoint** (`apps/api/src/modules/content/routes.ts`)
+  POST `/clauses/batch-content` — Akzeptiert Array von clauseVersionIds (max 50), gibt Clause-Version-Content in einem Request zurück. Zod-Validierung (min 1, max 50 IDs). Optimierte DB-Query mit `findMany({ where: { id: { in: ids } } })`. Verwendet für Live-Preview und Review-Screen.
+
+- **ReviewPage** (`apps/web/src/pages/ReviewPage.tsx`, ~200+ Zeilen)
+  Pre-Completion Review-Screen: Lädt Contract-Details + Clause-Contents via Batch-Endpoint. Zeigt Zusammenfassung (Titel, Mandantenreferenz, alle Interview-Antworten). Rendert Klausel-Inhalte mit Parameter-Substitution (Antworten ersetzen `{{key}}` Platzhalter). Validierungsstatus (gültig/Warnungen/Konflikte) mit farblicher Kennzeichnung. Zwei Aktionen: "Zurück zum Interview" und "Vertrag abschließen". ARIA: role="status", aria-live für Validierung.
+
+Nächste Schritte Team 04:
+
+- Sprint 10: Keyboard-Navigation für Interview-Flow optimieren.
+- Changelog-UI im Frontend (Abstimmung mit Team 03).
+- Export-Trigger aus Review-Screen (nach Completion → direkt Export starten).
+- Responsive Design für Interview + Review (Tablet-Optimierung).
+
+## 2026-02-11 (Sprint 10)
+
+**Sprint-10 Deliverables abgeschlossen.**
+
+Erstellte Code-Artefakte:
+
+- **Export-Trigger aus ReviewPage** (`apps/web/src/pages/ReviewPage.tsx`)
+  Nach Vertragabschluss (Completion) wird automatisch ein Export-Job via POST /export erstellt. Polling auf Export-Status (2s Intervall). Download-Button erscheint nach Fertigstellung. Fortschrittsanzeige (Pending → Processing → Completed). Fehlerbehandlung mit Retry-Option.
+
+- **Keyboard-Navigation Interview-Flow** (`apps/web/src/pages/InterviewPage.tsx`)
+  Enter: Nächste Frage. Shift+Enter: Vorherige Frage. Ctrl+S: Manuelles Speichern. `useEffect`-basierte Keyboard-Event-Handler. Fokus-Management bei Frage-Wechsel. Screen-Reader-Ankündigung bei Navigation (aria-live).
+
+Nächste Schritte Team 04:
+
+- Drag-and-Drop für Klausel-Reihenfolge im Contract Builder.
+- Offline-Fähigkeit für Interview-Flow (Service Worker).
+
+## 2026-02-11 (Sprint 11)
+
+**Sprint-11 Deliverables abgeschlossen.**
+
+Erstellte Code-Artefakte:
+
+- **Responsive Design** (`apps/web/src/styles/responsive.css`)
+  Breakpoints: Desktop (≥1024px, 3-Spalten Interview), Tablet (768–1023px, 2-Spalten, LivePreview als Drawer), Mobile (≤767px, Single-Column, Progress als Stepper). Interview-Page: Sidebar collapsible auf Tablet, Stack-Layout auf Mobile. Review-Page: Zwei-Spalten auf Tablet, Single-Column auf Mobile. CatalogPage: Grid responsive (4→3→2→1 Spalten). Touch-Targets ≥44px (WCAG 2.5.5).
+
+- **Changelog-UI** (`apps/web/src/components/ChangelogPanel.tsx`)
+  Slide-over Panel (rechts, 400px): Zeigt Version-History für Clauses/Templates. Changelog-Einträge gruppiert nach Version (Nummer + Datum). Change-Type-Badges (content, legal, editorial, structure). Legal-Impact-Anzeige (breaking=rot, minor=gelb, none=grau). Lazy-Loading via Intersection Observer. Keyboard-Dismissal (Escape). ARIA: role="dialog", aria-label, Focus-Trap.
+
+Nächste Schritte Team 04:
+
+- Drag-and-Drop für Klausel-Reihenfolge im Contract Builder.
+- Offline-Fähigkeit für Interview-Flow (Service Worker).
+- Multi-Language-Support (i18n-Framework).
+
+## 2026-02-11 (Sprint 12)
+
+**Sprint-12 Deliverables abgeschlossen.**
+
+Erstellte Code-Artefakte:
+
+- **ClauseReorderPanel** (`apps/web/src/components/ClauseReorderPanel.tsx`)
+  Drag-and-Drop für Klausel-Reihenfolge innerhalb Sections. HTML5 DnD API (keine Library). Nur optional/alternative Slots verschiebbar. Visuelles Feedback: Drag-Handle, Drop-Zone, Drag-Over-Indicator. ARIA: aria-grabbed, aria-dropeffect.
+
+- **i18n-Framework** (`apps/web/src/i18n/index.ts`, `de.json`, `en.json`)
+  Leichtgewichtiges i18n ohne externe Dependencies. React Context + JSON-Translations. `useTranslation()` Hook mit Interpolation. Default: Deutsch. TypeScript-typisiert.
+
+- **i18n-Tests** (`apps/web/src/i18n/__tests__/i18n.test.ts`)
+  Tests für Translation-Lookup, Fallback, Interpolation, Locale-Switch.

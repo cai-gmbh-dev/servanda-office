@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
+import { ChangelogPanel } from '../components/ChangelogPanel';
 
 interface TemplateItem {
   id: string;
@@ -26,6 +27,10 @@ export function CatalogPage() {
   const [templates, setTemplates] = useState<TemplateItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Changelog panel state
+  const [changelogOpen, setChangelogOpen] = useState(false);
+  const [changelogTemplateId, setChangelogTemplateId] = useState<string>('');
 
   // Filter state from URL params
   const searchQuery = searchParams.get('q') ?? '';
@@ -83,12 +88,21 @@ export function CatalogPage() {
     navigate(`/contracts/new/${template.latestVersion.id}`);
   }
 
+  function handleOpenChangelog(templateId: string) {
+    setChangelogTemplateId(templateId);
+    setChangelogOpen(true);
+  }
+
+  function handleCloseChangelog() {
+    setChangelogOpen(false);
+  }
+
   const hasActiveFilters = searchQuery || selectedCategory || selectedJurisdiction;
 
   return (
-    <div>
+    <div className="catalog-page">
       <h1>Vorlagen-Katalog</h1>
-      <p>Wählen Sie eine Vorlage, um einen neuen Vertrag zu erstellen.</p>
+      <p>Waehlen Sie eine Vorlage, um einen neuen Vertrag zu erstellen.</p>
 
       {/* Filter Bar */}
       <div className="filter-bar" role="search" aria-label="Vorlagen filtern">
@@ -130,8 +144,8 @@ export function CatalogPage() {
           </select>
 
           {hasActiveFilters && (
-            <button type="button" onClick={clearFilters} className="btn-clear" aria-label="Filter zurücksetzen">
-              Filter zurücksetzen
+            <button type="button" onClick={clearFilters} className="btn-clear" aria-label="Filter zuruecksetzen">
+              Filter zuruecksetzen
             </button>
           )}
         </div>
@@ -147,11 +161,11 @@ export function CatalogPage() {
       {error && <p role="alert" className="error">{error}</p>}
 
       {!loading && filtered.length === 0 && templates.length > 0 && (
-        <p>Keine Vorlagen für die gewählten Filter gefunden.</p>
+        <p>Keine Vorlagen fuer die gewaehlten Filter gefunden.</p>
       )}
 
       {!loading && templates.length === 0 && (
-        <p>Keine veröffentlichten Vorlagen verfügbar.</p>
+        <p>Keine veroeffentlichten Vorlagen verfuegbar.</p>
       )}
 
       <div className="template-grid" role="list" aria-label="Vorlagen">
@@ -167,17 +181,35 @@ export function CatalogPage() {
                 <span key={tag} className="badge badge--tag">{tag}</span>
               ))}
             </div>
-            <button
-              type="button"
-              onClick={() => handleSelect(t)}
-              disabled={!t.latestVersion}
-              aria-label={`Vertrag erstellen mit Vorlage ${t.title}`}
-            >
-              Vertrag erstellen
-            </button>
+            <div className="template-card__actions">
+              <button
+                type="button"
+                onClick={() => handleSelect(t)}
+                disabled={!t.latestVersion}
+                aria-label={`Vertrag erstellen mit Vorlage ${t.title}`}
+              >
+                Vertrag erstellen
+              </button>
+              <button
+                type="button"
+                className="btn-changelog"
+                onClick={() => handleOpenChangelog(t.id)}
+                aria-label={`Versionshistorie fuer Vorlage ${t.title}`}
+              >
+                Historie
+              </button>
+            </div>
           </article>
         ))}
       </div>
+
+      {/* Changelog Slide-Over Panel */}
+      <ChangelogPanel
+        entityType="template"
+        entityId={changelogTemplateId}
+        isOpen={changelogOpen}
+        onClose={handleCloseChangelog}
+      />
     </div>
   );
 }

@@ -10,9 +10,9 @@ on:
     branches: [main]
 
 jobs:
-  # --- Full Test Suite ---
+  # --- Full Test Suite + Coverage Report ---
   test-full:
-    name: Full Test Suite
+    name: Full Test Suite + Coverage
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -38,7 +38,52 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - run: npm run db:generate
-      - run: npm run test:coverage
+
+      - name: Run tests with coverage (JSON + text + HTML)
+        run: npm run test:coverage
+
+      - name: Upload coverage report artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: |
+            coverage/
+          retention-days: 30
+
+      - name: Write coverage summary to job summary
+        if: always()
+        run: |
+          echo "## Coverage Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Parse coverage-summary.json if it exists
+          if [ -f coverage/coverage-summary.json ]; then
+            echo "| Category | Statements | Branches | Functions | Lines |" >> $GITHUB_STEP_SUMMARY
+            echo "|----------|-----------|----------|-----------|-------|" >> $GITHUB_STEP_SUMMARY
+
+            STMTS=$(jq -r '.total.statements.pct' coverage/coverage-summary.json)
+            BRANCH=$(jq -r '.total.branches.pct' coverage/coverage-summary.json)
+            FUNCS=$(jq -r '.total.functions.pct' coverage/coverage-summary.json)
+            LINES=$(jq -r '.total.lines.pct' coverage/coverage-summary.json)
+
+            # Determine pass/fail emoji per metric (threshold: 80%)
+            STMTS_ICON=$( [ "$(echo "$STMTS >= 80" | bc -l)" = "1" ] && echo "✅" || echo "❌" )
+            BRANCH_ICON=$( [ "$(echo "$BRANCH >= 80" | bc -l)" = "1" ] && echo "✅" || echo "❌" )
+            FUNCS_ICON=$( [ "$(echo "$FUNCS >= 80" | bc -l)" = "1" ] && echo "✅" || echo "❌" )
+            LINES_ICON=$( [ "$(echo "$LINES >= 80" | bc -l)" = "1" ] && echo "✅" || echo "❌" )
+
+            echo "| **Total** | ${STMTS_ICON} ${STMTS}% | ${BRANCH_ICON} ${BRANCH}% | ${FUNCS_ICON} ${FUNCS}% | ${LINES_ICON} ${LINES}% |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "_Threshold: ≥ 80% for all categories (Quality Gate)_" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ **coverage-summary.json not found.** Coverage may not have been generated." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Looked for: \`coverage/coverage-summary.json\`" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📦 Full coverage report available as artifact: **coverage-report**" >> $GITHUB_STEP_SUMMARY
 
   # --- Build + Docker Image ---
   build:
@@ -63,6 +108,23 @@ jobs:
     name: Lighthouse (≥85 Perf, ≥90 A11y)
     runs-on: ubuntu-latest
     needs: build
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: servanda_office_test
+          POSTGRES_USER: servanda
+          POSTGRES_PASSWORD: servanda_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U servanda"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://servanda:servanda_test@localhost:5432/servanda_office_test
+      CI: 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -70,17 +132,116 @@ jobs:
           node-version: '20'
           cache: 'npm'
       - run: npm ci
-      - run: npm run build:web
-      # TODO: Enable when frontend is ready
-      # - run: npx serve apps/web/dist -l 3000 &
-      # - run: npx wait-on http://localhost:3000
-      # - name: Run Lighthouse CI
-      #   uses: treosh/lighthouse-ci-action@v11
-      #   with:
-      #     urls: |
-      #       http://localhost:3000/
-      #       http://localhost:3000/dashboard
-      #     configPath: ./lighthouserc.json
+      - name: Generate Prisma Client
+        run: npx prisma generate
+        working-directory: apps/api
+      - name: Push schema to database
+        run: npx prisma db push --skip-generate --accept-data-loss
+        working-directory: apps/api
+      - name: Seed database
+        run: npx ts-node apps/api/prisma/seed.ts
+      - name: Start API in background
+        run: npm run dev -w apps/api &
+      - name: Build Web
+        run: npm run build -w apps/web
+      - name: Serve Web statically
+        run: npx serve apps/web/dist -l 5173 &
+      - name: Wait for API and Web to be ready
+        run: |
+          echo "Waiting for API on localhost:3000..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000/api/v1/health > /dev/null 2>&1; then
+              echo "API is ready!"
+              break
+            fi
+            echo "API attempt $i/30 — retrying in 2s..."
+            sleep 2
+          done
+          echo "Waiting for Web on localhost:5173..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:5173/ > /dev/null 2>&1; then
+              echo "Web is ready!"
+              break
+            fi
+            echo "Web attempt $i/30 — retrying in 2s..."
+            sleep 2
+          done
+      - name: Run Lighthouse CI
+        run: npx @lhci/cli autorun
+
+  # --- Integration Tests (Testcontainers) ---
+  integration-tests:
+    name: Integration Tests (Testcontainers)
+    runs-on: ubuntu-latest
+    env:
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Generate Prisma Client
+        run: npx prisma generate
+        working-directory: apps/api
+      - name: Run integration tests (Testcontainers)
+        run: npx vitest run --config apps/api/vitest.config.ts apps/api/src/__tests__/integration/
+        timeout-minutes: 2
+
+  # --- Security Tests (T-01..T-12) ---
+  security-tests:
+    name: Security Tests (T-01..T-12)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: servanda_office_test
+          POSTGRES_USER: servanda
+          POSTGRES_PASSWORD: servanda_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U servanda"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://servanda:servanda_test@localhost:5432/servanda_office_test
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Generate Prisma Client
+        run: npx prisma generate
+        working-directory: apps/api
+      - name: Push schema to database
+        run: npx prisma db push --skip-generate --accept-data-loss
+        working-directory: apps/api
+      - name: Seed database
+        run: npx ts-node apps/api/prisma/seed.ts
+      - name: Start API in background
+        run: npm run dev -w apps/api &
+      - name: Wait for API to be ready
+        run: |
+          echo "Waiting for API on localhost:3000..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000/api/v1/health > /dev/null 2>&1; then
+              echo "API is ready!"
+              exit 0
+            fi
+            echo "Attempt $i/30 — retrying in 2s..."
+            sleep 2
+          done
+          echo "API failed to start within 60s"
+          exit 1
+      - name: Run security tests
+        run: npx vitest run apps/api/src/__tests__/security/
 
   # --- Dependency Security Scan ---
   security:

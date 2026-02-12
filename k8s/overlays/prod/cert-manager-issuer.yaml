@@ -1,0 +1,21 @@
+# ClusterIssuer for Let's Encrypt Production
+# Requires cert-manager to be installed in the cluster:
+#   kubectl apply -f https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml
+# Or via Helm:
+#   helm install cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace --set installCRDs=true
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    # Let's Encrypt Production ACME server
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: ops@servanda.de
+    # Secret to store the ACME account private key
+    privateKeySecretRef:
+      name: letsencrypt-prod-account-key
+    solvers:
+      - http01:
+          ingress:
+            class: nginx

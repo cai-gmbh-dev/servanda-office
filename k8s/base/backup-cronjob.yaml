@@ -1,0 +1,181 @@
+# PostgreSQL Backup CronJob for Servanda Office
+# - Runs daily at 02:00 UTC
+# - pg_dump -> gzip -> Upload to S3 (MinIO / AWS S3)
+# - Retention: 30 days (older backups are deleted)
+# - Uses postgres:16-alpine base with aws-cli for S3 operations
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+  namespace: servanda-office
+  labels:
+    app.kubernetes.io/name: postgres-backup
+    app.kubernetes.io/component: backup
+    app.kubernetes.io/part-of: servanda-office
+spec:
+  schedule: "0 2 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 7
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgres-backup
+        app.kubernetes.io/component: backup
+    spec:
+      backoffLimit: 3
+      activeDeadlineSeconds: 3600
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: postgres-backup
+            app.kubernetes.io/component: backup
+        spec:
+          restartPolicy: OnFailure
+          serviceAccountName: default
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            fsGroup: 1000
+          containers:
+            - name: postgres-backup
+              image: postgres:16-alpine
+              imagePullPolicy: IfNotPresent
+              resources:
+                requests:
+                  memory: 256Mi
+                  cpu: 250m
+                limits:
+                  memory: 512Mi
+                  cpu: 500m
+              env:
+                # --- Database credentials from External Secret ---
+                - name: PGHOST
+                  valueFrom:
+                    secretKeyRef:
+                      name: servanda-db-credentials
+                      key: host
+                - name: PGPORT
+                  valueFrom:
+                    secretKeyRef:
+                      name: servanda-db-credentials
+                      key: port
+                - name: PGUSER
+                  valueFrom:
+                    secretKeyRef:
+                      name: servanda-db-credentials
+                      key: username
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: servanda-db-credentials
+                      key: password
+                - name: PGDATABASE
+                  valueFrom:
+                    secretKeyRef:
+                      name: servanda-db-credentials
+                      key: dbname
+                # --- S3 credentials from External Secret ---
+                - name: AWS_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: servanda-s3-credentials
+                      key: S3_ACCESS_KEY
+                - name: AWS_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: servanda-s3-credentials
+                      key: S3_SECRET_KEY
+                - name: S3_ENDPOINT
+                  valueFrom:
+                    secretKeyRef:
+                      name: servanda-s3-credentials
+                      key: S3_ENDPOINT
+                # --- Backup configuration from ConfigMap ---
+                - name: S3_BUCKET
+                  valueFrom:
+                    configMapKeyRef:
+                      name: backup-config
+                      key: S3_BUCKET
+                - name: S3_PREFIX
+                  valueFrom:
+                    configMapKeyRef:
+                      name: backup-config
+                      key: S3_PREFIX
+                - name: BACKUP_RETENTION_DAYS
+                  valueFrom:
+                    configMapKeyRef:
+                      name: backup-config
+                      key: BACKUP_RETENTION_DAYS
+                - name: PGDUMP_EXTRA_ARGS
+                  valueFrom:
+                    configMapKeyRef:
+                      name: backup-config
+                      key: PGDUMP_EXTRA_ARGS
+              command:
+                - /bin/sh
+                - -euo
+                - pipefail
+                - -c
+                - |
+                  echo "=== Servanda Office PostgreSQL Backup ==="
+                  echo "Started at: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+                  # --- Step 0: Install aws-cli (alpine minimal) ---
+                  apk add --no-cache aws-cli > /dev/null 2>&1
+                  echo "[OK] aws-cli installed"
+
+                  # --- Step 1: Create database dump ---
+                  TIMESTAMP=$(date -u +%Y%m%d-%H%M%S)
+                  BACKUP_FILE="/tmp/servanda-${PGDATABASE}-${TIMESTAMP}.dump"
+
+                  echo "[1/3] Creating pg_dump (format=custom, compress=9)..."
+                  pg_dump \
+                    --format=custom \
+                    --compress=9 \
+                    ${PGDUMP_EXTRA_ARGS} \
+                    --file="${BACKUP_FILE}"
+
+                  FILESIZE=$(du -h "${BACKUP_FILE}" | cut -f1)
+                  echo "[OK] Dump created: ${BACKUP_FILE} (${FILESIZE})"
+
+                  # --- Step 2: Upload to S3 ---
+                  S3_TARGET="s3://${S3_BUCKET}/${S3_PREFIX}${TIMESTAMP}.dump"
+
+                  echo "[2/3] Uploading to ${S3_TARGET}..."
+                  aws s3 cp "${BACKUP_FILE}" "${S3_TARGET}" \
+                    --endpoint-url "${S3_ENDPOINT}" \
+                    --no-progress
+
+                  echo "[OK] Upload complete"
+                  rm -f "${BACKUP_FILE}"
+
+                  # --- Step 3: Cleanup old backups (retention policy) ---
+                  echo "[3/3] Cleaning up backups older than ${BACKUP_RETENTION_DAYS} days..."
+
+                  CUTOFF_DATE=$(date -u -d "-${BACKUP_RETENTION_DAYS} days" +%Y%m%d 2>/dev/null || \
+                    date -u -v-${BACKUP_RETENTION_DAYS}d +%Y%m%d 2>/dev/null || \
+                    echo "00000000")
+
+                  if [ "${CUTOFF_DATE}" = "00000000" ]; then
+                    echo "[WARN] Could not calculate cutoff date, skipping cleanup"
+                  else
+                    DELETED_COUNT=0
+                    aws s3 ls "s3://${S3_BUCKET}/${S3_PREFIX}" \
+                      --endpoint-url "${S3_ENDPOINT}" 2>/dev/null | \
+                    while read -r LINE; do
+                      FILE_NAME=$(echo "${LINE}" | awk '{print $NF}')
+                      # Extract date from filename pattern: YYYYMMDD-HHMMSS.dump
+                      FILE_DATE=$(echo "${FILE_NAME}" | grep -oE '[0-9]{8}' | head -1)
+
+                      if [ -n "${FILE_DATE}" ] && [ "${FILE_DATE}" -lt "${CUTOFF_DATE}" ] 2>/dev/null; then
+                        echo "  Deleting old backup: ${FILE_NAME} (date: ${FILE_DATE})"
+                        aws s3 rm "s3://${S3_BUCKET}/${S3_PREFIX}${FILE_NAME}" \
+                          --endpoint-url "${S3_ENDPOINT}"
+                        DELETED_COUNT=$((DELETED_COUNT + 1))
+                      fi
+                    done
+                    echo "[OK] Cleanup complete (deleted ${DELETED_COUNT:-0} old backups)"
+                  fi
+
+                  echo "=== Backup finished at: $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="

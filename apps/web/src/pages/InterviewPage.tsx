@@ -1,5 +1,5 @@
 /**
- * Interview Page — Sprint 7 (Team 04)
+ * Interview Page — Sprint 9 (Team 04)
  *
  * Guided contract creation flow:
  * - Loads template version + interview flow questions
@@ -9,6 +9,7 @@
  * - Conditional logic: show/hide/skip questions based on answers
  * - Auto-save (2s debounce) via PATCH /contracts/:id
  * - Validation display (warnings/conflicts)
+ * - Keyboard navigation: Enter (next), Shift+Enter (prev), Ctrl+S (save)
  */
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
@@ -72,9 +73,12 @@ export function InterviewPage() {
   const [currentStep, setCurrentStep] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savedFeedback, setSavedFeedback] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const savedFeedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const questionInputRef = useRef<HTMLDivElement>(null);
   const answersRef = useRef(answers);
   answersRef.current = answers;
   const slotsRef = useRef(selectedSlots);
@@ -208,6 +212,84 @@ export function InterviewPage() {
     }
   }
 
+  // --- Manual save (Ctrl+S) ---
+  const handleManualSave = useCallback(async () => {
+    if (!contract) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    setSaving(true);
+    try {
+      await api.patch<ContractDetail>(`/contracts/${contract.id}`, {
+        answers: answersRef.current,
+        selectedSlots: slotsRef.current,
+      });
+      setSavedFeedback(true);
+      if (savedFeedbackTimerRef.current) clearTimeout(savedFeedbackTimerRef.current);
+      savedFeedbackTimerRef.current = setTimeout(() => setSavedFeedback(false), 2000);
+    } catch {
+      // Silent fail
+    } finally {
+      setSaving(false);
+    }
+  }, [contract]);
+
+  // --- Keyboard navigation ---
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      // Ctrl+S: Manual save
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        handleManualSave();
+        return;
+      }
+
+      // Do not intercept Enter/Shift+Enter inside textareas or select elements
+      const target = e.target as HTMLElement;
+      const tagName = target.tagName.toLowerCase();
+      if (tagName === 'textarea') return;
+
+      // Enter: Next visible question
+      if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        // Only advance if the current question has been answered
+        const currentQ = visibleQuestions[currentStep];
+        if (!currentQ) return;
+        const currentAnswer = answersRef.current[currentQ.key];
+        const isAnswered = currentAnswer !== undefined && currentAnswer !== '' && currentAnswer !== null;
+        if (!isAnswered) return;
+
+        e.preventDefault();
+        if (currentStep < visibleQuestions.length - 1) {
+          setCurrentStep((s) => s + 1);
+        }
+        return;
+      }
+
+      // Shift+Enter: Previous visible question
+      if (e.key === 'Enter' && e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+        if (currentStep > 0) {
+          setCurrentStep((s) => s - 1);
+        }
+        return;
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [currentStep, visibleQuestions, handleManualSave]);
+
+  // --- Focus management: auto-focus input when question changes ---
+  useEffect(() => {
+    if (!questionInputRef.current) return;
+    // Find the first focusable element inside the question container
+    const focusable = questionInputRef.current.querySelector<HTMLElement>(
+      'input, select, textarea, [tabindex]',
+    );
+    if (focusable) {
+      // Small delay to let React render the new question
+      requestAnimationFrame(() => focusable.focus());
+    }
+  }, [currentStep]);
+
   // --- Render ---
   if (loading) return <p aria-live="polite">Vertrag wird geladen...</p>;
   if (error) return <p role="alert" className="error">{error}</p>;
@@ -252,6 +334,12 @@ export function InterviewPage() {
           </p>
         )}
 
+        {savedFeedback && !saving && (
+          <p className="save-indicator save-indicator--done" aria-live="polite">
+            Gespeichert &#10003;
+          </p>
+        )}
+
         <nav aria-label="Fragen-Navigation">
           <ol>
             {visibleQuestions.map((q, i) => (
@@ -272,7 +360,10 @@ export function InterviewPage() {
       </aside>
 
       {/* Question Panel */}
-      <main className="interview-main">
+      <main
+        className="interview-main"
+        aria-keyshortcuts="Enter Shift+Enter Control+s"
+      >
         <h1>{contract?.title ?? 'Neuer Vertrag'}</h1>
 
         {visibleQuestions.length === 0 ? (
@@ -284,15 +375,17 @@ export function InterviewPage() {
               <p className="help-text">{currentQuestion.helpText}</p>
             )}
 
-            <QuestionInput
-              question={currentQuestion}
-              value={answers[currentQuestion.key]}
-              onChange={(val) => handleAnswerChange(currentQuestion.key, val)}
-            />
+            <div ref={questionInputRef}>
+              <QuestionInput
+                question={currentQuestion}
+                value={answers[currentQuestion.key]}
+                onChange={(val) => handleAnswerChange(currentQuestion.key, val)}
+              />
+            </div>
 
             <div className="interview-actions">
               <button type="button" onClick={handlePrev} disabled={currentStep === 0}>
-                Zurück
+                Zurueck
               </button>
               {currentStep < visibleQuestions.length - 1 ? (
                 <button type="button" onClick={handleNext}>
@@ -300,10 +393,14 @@ export function InterviewPage() {
                 </button>
               ) : (
                 <button type="button" onClick={handleComplete} className="primary">
-                  Vertrag abschließen
+                  Vertrag abschliessen
                 </button>
               )}
             </div>
+
+            <p className="keyboard-hints" aria-hidden="true">
+              <kbd>Enter</kbd> Weiter &middot; <kbd>Shift+Enter</kbd> Zurueck &middot; <kbd>Ctrl+S</kbd> Speichern
+            </p>
           </section>
         ) : null}
 

@@ -1,0 +1,250 @@
+{
+  "clauses": [
+    {
+      "title": "Zweck der Vereinbarung",
+      "jurisdiction": "DE",
+      "legalArea": "Vertragsrecht",
+      "tags": ["nda", "geheimhaltung", "zweck"],
+      "versions": [
+        {
+          "content": "Die Parteien beabsichtigen, im Rahmen von {projektbeschreibung} vertrauliche Informationen auszutauschen.",
+          "changeNote": "Initiale Version",
+          "parameters": {
+            "projektbeschreibung": {
+              "type": "text",
+              "label": "Beschreibung des Projekts bzw. Vorhabens",
+              "required": true
+            }
+          },
+          "rules": []
+        }
+      ]
+    },
+    {
+      "title": "Definition vertraulicher Informationen",
+      "jurisdiction": "DE",
+      "legalArea": "Vertragsrecht",
+      "tags": ["nda", "geheimhaltung", "definition"],
+      "versions": [
+        {
+          "content": "Als vertrauliche Informationen im Sinne dieser Vereinbarung gelten alle Informationen {info_typ}, die als vertraulich gekennzeichnet sind oder ihrer Natur nach als vertraulich zu betrachten sind.",
+          "changeNote": "Initiale Version",
+          "parameters": {
+            "info_typ": {
+              "type": "single_choice",
+              "label": "Art der vertraulichen Informationen",
+              "required": true,
+              "options": ["technischer Art", "geschäftlicher Art", "technischer und geschäftlicher Art"]
+            }
+          },
+          "rules": []
+        }
+      ]
+    },
+    {
+      "title": "Pflichten der Parteien",
+      "jurisdiction": "DE",
+      "legalArea": "Vertragsrecht",
+      "tags": ["nda", "geheimhaltung", "pflichten"],
+      "versions": [
+        {
+          "content": "Die empfangende Partei verpflichtet sich, die vertraulichen Informationen ausschließlich für den in § 1 genannten Zweck zu verwenden und {weitergabe_erlaubt} an Dritte weiterzugeben.",
+          "changeNote": "Initiale Version",
+          "parameters": {
+            "weitergabe_erlaubt": {
+              "type": "single_choice",
+              "label": "Weitergabe an Dritte",
+              "required": true,
+              "options": ["nicht", "nur mit vorheriger schriftlicher Zustimmung"]
+            }
+          },
+          "rules": [
+            {
+              "type": "requires",
+              "targetClauseTitle": "Zweck der Vereinbarung",
+              "severity": "hard",
+              "message": "Die Pflichten der Parteien setzen die Definition des Vertragszwecks voraus."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Dauer und Beendigung",
+      "jurisdiction": "DE",
+      "legalArea": "Vertragsrecht",
+      "tags": ["nda", "geheimhaltung", "dauer", "laufzeit"],
+      "versions": [
+        {
+          "content": "Diese Vereinbarung tritt mit Unterzeichnung in Kraft und gilt für einen Zeitraum von {nda_dauer}. Die Geheimhaltungspflicht besteht {nachvertragliche_pflicht} über die Beendigung hinaus fort.",
+          "changeNote": "Initiale Version",
+          "parameters": {
+            "nda_dauer": {
+              "type": "text",
+              "label": "Laufzeit der Vereinbarung",
+              "required": false,
+              "default": "2 Jahre"
+            },
+            "nachvertragliche_pflicht": {
+              "type": "text",
+              "label": "Nachvertragliche Geheimhaltungspflicht",
+              "required": false,
+              "default": "3 Jahre"
+            }
+          },
+          "rules": []
+        }
+      ]
+    },
+    {
+      "title": "Vertragsstrafe",
+      "jurisdiction": "DE",
+      "legalArea": "Vertragsrecht",
+      "tags": ["nda", "geheimhaltung", "vertragsstrafe", "sanktion"],
+      "versions": [
+        {
+          "content": "Bei Verstoß gegen die Geheimhaltungspflicht ist eine Vertragsstrafe in Höhe von {vertragsstrafe} EUR pro Verstoß vereinbart. Die Geltendmachung weitergehender Schadensersatzansprüche bleibt unberührt.",
+          "changeNote": "Initiale Version",
+          "parameters": {
+            "vertragsstrafe": {
+              "type": "currency",
+              "label": "Vertragsstrafe pro Verstoß (EUR)",
+              "required": false,
+              "default": 10000
+            }
+          },
+          "rules": [
+            {
+              "type": "requires",
+              "targetClauseTitle": "Pflichten der Parteien",
+              "severity": "hard",
+              "message": "Eine Vertragsstrafe setzt die Definition der Geheimhaltungspflichten voraus."
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "templates": [
+    {
+      "title": "NDA (Standard)",
+      "description": "Standardmuster für eine Geheimhaltungsvereinbarung (Non-Disclosure Agreement) nach deutschem Recht. Geeignet für bilaterale Vertraulichkeitsvereinbarungen bei Geschäftsanbahnung, Projektkooperationen und Due-Diligence-Prozessen.",
+      "category": "Geheimhaltungsvereinbarungen",
+      "jurisdiction": "DE",
+      "legalArea": "Vertragsrecht",
+      "tags": ["nda", "geheimhaltung", "standard", "deutsch"],
+      "sections": [
+        {
+          "title": "Gegenstand",
+          "slots": [
+            {
+              "clauseTitle": "Zweck der Vereinbarung",
+              "type": "required"
+            },
+            {
+              "clauseTitle": "Definition vertraulicher Informationen",
+              "type": "required"
+            }
+          ]
+        },
+        {
+          "title": "Pflichten",
+          "slots": [
+            {
+              "clauseTitle": "Pflichten der Parteien",
+              "type": "required"
+            },
+            {
+              "clauseTitle": "Dauer und Beendigung",
+              "type": "required"
+            }
+          ]
+        },
+        {
+          "title": "Sanktionen",
+          "slots": [
+            {
+              "clauseTitle": "Vertragsstrafe",
+              "type": "optional"
+            }
+          ]
+        }
+      ],
+      "interviewFlow": {
+        "title": "NDA Interview",
+        "questions": [
+          {
+            "key": "projektbeschreibung",
+            "type": "text",
+            "label": "Für welches Projekt bzw. Vorhaben wird die Geheimhaltungsvereinbarung geschlossen?",
+            "required": true,
+            "helpText": "Beschreiben Sie kurz den Anlass für den Austausch vertraulicher Informationen (z. B. Projektkooperation, Due Diligence, Geschäftsanbahnung)."
+          },
+          {
+            "key": "info_typ",
+            "type": "single_choice",
+            "label": "Welche Art von Informationen soll geschützt werden?",
+            "required": true,
+            "options": [
+              { "value": "technischer Art", "label": "Technische Informationen" },
+              { "value": "geschäftlicher Art", "label": "Geschäftliche Informationen" },
+              { "value": "technischer und geschäftlicher Art", "label": "Technische und geschäftliche Informationen" }
+            ],
+            "helpText": "Wählen Sie die Kategorie der zu schützenden Informationen."
+          },
+          {
+            "key": "weitergabe_erlaubt",
+            "type": "single_choice",
+            "label": "Dürfen vertrauliche Informationen an Dritte weitergegeben werden?",
+            "required": true,
+            "options": [
+              { "value": "nicht", "label": "Nein, keine Weitergabe an Dritte" },
+              { "value": "nur mit vorheriger schriftlicher Zustimmung", "label": "Ja, mit vorheriger schriftlicher Zustimmung" }
+            ],
+            "helpText": "Bestimmen Sie, ob und unter welchen Bedingungen eine Weitergabe an Dritte zulässig sein soll."
+          },
+          {
+            "key": "nda_dauer",
+            "type": "text",
+            "label": "Wie lange soll die Vereinbarung gelten?",
+            "required": false,
+            "default": "2 Jahre",
+            "helpText": "Üblich sind 1 bis 5 Jahre. Bei Nichtangabe gelten 2 Jahre."
+          },
+          {
+            "key": "nachvertragliche_pflicht",
+            "type": "text",
+            "label": "Wie lange soll die Geheimhaltungspflicht nach Vertragsende fortgelten?",
+            "required": false,
+            "default": "3 Jahre",
+            "helpText": "Üblich sind 2 bis 5 Jahre über die Beendigung hinaus."
+          },
+          {
+            "key": "vertragsstrafe_gewuenscht",
+            "type": "yes_no",
+            "label": "Soll eine Vertragsstrafe bei Verstoß vereinbart werden?",
+            "required": true,
+            "default": false,
+            "helpText": "Eine Vertragsstrafe erleichtert die Durchsetzung der Geheimhaltungspflicht, da kein konkreter Schaden nachgewiesen werden muss."
+          },
+          {
+            "key": "vertragsstrafe",
+            "type": "currency",
+            "label": "Wie hoch soll die Vertragsstrafe pro Verstoß sein (EUR)?",
+            "required": false,
+            "default": 10000,
+            "helpText": "Die Vertragsstrafe muss angemessen sein. Üblich sind Beträge zwischen 5.000 und 50.000 EUR je nach Vertragswert.",
+            "conditions": [
+              {
+                "questionKey": "vertragsstrafe_gewuenscht",
+                "operator": "equals",
+                "value": true,
+                "logic": "show"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

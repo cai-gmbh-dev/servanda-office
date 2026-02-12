@@ -112,7 +112,39 @@ Erstellte Code-Artefakte:
 
 Nächste Schritte Team 03:
 
-- Sprint 9: Weitere .docx-Vorlagen für verschiedene Vertragstypen (Dienstleistungsvertrag, NDA).
-- Changelog-UI im Frontend (Abstimmung mit Team 04).
+- Weitere .docx-Vorlagen für verschiedene Vertragstypen (Dienstleistungsvertrag, NDA).
 - Bulk-Publishing für Template-Updates.
 - Review-Dashboard für Reviewer-Übersicht.
+
+## 2026-02-11 (Sprint 11)
+
+**Sprint-11 Deliverables abgeschlossen.**
+
+Erstellte Code-Artefakte:
+
+- **Content-Import Service** (`apps/api/src/modules/content/import.ts`)
+  Bulk-Import von Clauses, Templates und InterviewFlows aus JSON-Dateien. Zod-Validierung (`contentImportSchema`). Transaktionale Erstellung mit RLS-Context. Unterstützt verschachtelte Versions-Erstellung (Clause → ClauseVersion, Template → TemplateVersion). Import-Report mit Zusammenfassung (erstellt/fehlgeschlagen pro Typ) und Detail-Fehlern.
+
+- **Content-Import Unit-Tests** (`apps/api/src/modules/content/import.test.ts`)
+  Tests für: Single-Clause-Import, Multi-Clause-Import, Template-Import mit Versions, Validierungsfehler (fehlende Pflichtfelder), leerer Import.
+
+- **Import-Endpoint** (`apps/api/src/modules/content/routes.ts`)
+  POST `/import` — Admin-only, Zod-Validierung, Audit-Log. Integriert in Content-Router.
+
+Nächste Schritte Team 03:
+
+- Weitere .docx-Vorlagen für verschiedene Vertragstypen.
+- Bulk-Publishing für Template-Updates.
+- Review-Dashboard für Reviewer-Übersicht.
+
+## 2026-02-11 (Sprint 12)
+
+**Sprint-12 Deliverables abgeschlossen.**
+
+Erstellte Artefakte:
+
+- **Pilot-Content: Dienstleistungsvertrag** (`apps/api/prisma/fixtures/dienstleistungsvertrag.json`)
+  Vollständiges Template mit Klauseln (Leistungsbeschreibung, Vergütung, Laufzeit/Kündigung, Haftung, Geheimhaltung, Schlussbestimmungen). Interview-Flow mit 12+ Fragen. Conditional Logic. Konfliktregeln.
+
+- **Pilot-Content: NDA/Geheimhaltungsvereinbarung** (`apps/api/prisma/fixtures/nda.json`)
+  Vollständiges Template für NDA (Definition vertraulicher Informationen, Schutzpflichten, Ausnahmen, Vertragsstrafe, Laufzeit). Interview-Flow. Einseitige und gegenseitige NDAs via Conditional Logic.

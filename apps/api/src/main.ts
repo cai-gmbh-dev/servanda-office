@@ -13,6 +13,8 @@ import { contractRouter } from './modules/contract/routes';
 import { exportRouter } from './modules/export/routes';
 import { dlqRouter } from './modules/export/dlq-routes';
 import { brandingRouter } from './modules/export/branding-routes';
+import { batchExportRouter } from './modules/export/batch-routes';
+import { logoUploadHandler } from './modules/export/logo-upload';
 import { reviewerRouter } from './modules/content/reviewer';
 
 const app = express();
@@ -73,7 +75,9 @@ app.use('/api/v1/content', reviewerRouter);
 app.use('/api/v1/contracts', contractRouter);
 app.use('/api/v1/export-jobs', exportRouter);
 app.use('/api/v1/export-jobs', dlqRouter);
+app.use('/api/v1/export-jobs', batchExportRouter);
 app.use('/api/v1/export', brandingRouter);
+app.post('/api/v1/export/branding/style-templates/:id/logo', logoUploadHandler);
 
 // Legacy routes (backward-compatible, same handlers)
 app.use('/api/identity', identityRouter);
@@ -83,7 +87,9 @@ app.use('/api/content', reviewerRouter);
 app.use('/api/contracts', contractRouter);
 app.use('/api/export-jobs', exportRouter);
 app.use('/api/export-jobs', dlqRouter);
+app.use('/api/export-jobs', batchExportRouter);
 app.use('/api/export', brandingRouter);
+app.post('/api/export/branding/style-templates/:id/logo', logoUploadHandler);
 
 // --- Error Handler ---
 app.use(errorHandler);

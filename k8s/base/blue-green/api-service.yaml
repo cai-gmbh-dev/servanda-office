@@ -1,0 +1,88 @@
+# =============================================================================
+# API Service — Blue/Green Strategy
+# Team 07 — DevOps & On-Prem | Sprint 12
+#
+# This service routes traffic to the active color (blue or green).
+# The selector "app.kubernetes.io/version: blue" is the initial state.
+# The blue-green-deploy.sh script patches this selector to switch traffic.
+#
+# Additionally, two internal services (api-blue, api-green) provide
+# direct access for smoke testing before traffic switch.
+# =============================================================================
+
+# --- Primary Service (routes to active color) ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: servanda-api
+  namespace: servanda-office
+  labels:
+    app: servanda
+    component: api
+    app.kubernetes.io/name: servanda-api
+    app.kubernetes.io/part-of: servanda-office
+  annotations:
+    servanda.de/deployment-strategy: blue-green
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+      protocol: TCP
+  selector:
+    app: servanda
+    component: api
+    app.kubernetes.io/version: blue
+
+---
+
+# --- Blue Internal Service (for smoke testing) ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: servanda-api-blue
+  namespace: servanda-office
+  labels:
+    app: servanda
+    component: api
+    app.kubernetes.io/version: blue
+  annotations:
+    servanda.de/purpose: blue-green-smoke-test
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+      protocol: TCP
+  selector:
+    app: servanda
+    component: api
+    app.kubernetes.io/version: blue
+
+---
+
+# --- Green Internal Service (for smoke testing) ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: servanda-api-green
+  namespace: servanda-office
+  labels:
+    app: servanda
+    component: api
+    app.kubernetes.io/version: green
+  annotations:
+    servanda.de/purpose: blue-green-smoke-test
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+      protocol: TCP
+  selector:
+    app: servanda
+    component: api
+    app.kubernetes.io/version: green

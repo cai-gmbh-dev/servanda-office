@@ -136,3 +136,53 @@ Nächste Schritte Team 05:
 - Batch-Export für mehrere Verträge.
 - Logo-Upload für Branding (S3-Integration).
 - DLQ-Dashboard-UI im Frontend.
+
+## 2026-02-11 (Sprint 10)
+
+**Sprint-10 Deliverables abgeschlossen.**
+
+Erstellte Code-Artefakte:
+
+- **Export-Pipeline E2E-Validierung** (`apps/export-worker/src/__tests__/export-pipeline.integration.test.ts`, 10 Tests)
+  Vollständige Pipeline-Tests mit Seed-Daten: Job-Erstellung → Data-Loading → DOCX-Rendering → S3-Upload → Status-Update. Tests für: erfolgreicher Export, fehlender Contract (404), unvollständiger Contract, ODT-Export (Feature-Flag enabled/disabled), Style-Template-Anwendung, Pre-signed URL-Generierung, Retry-Logik bei transientem Fehler, DLQ bei permanentem Fehler, Concurrent-Job-Handling, Export-Performance (<15s P95).
+
+Nächste Schritte Team 05:
+
+- Batch-Export für mehrere Verträge.
+- Logo-Upload für Branding (S3-Integration).
+- DLQ-Dashboard-UI im Frontend.
+- Wasserzeichen-Support für Draft-Exports.
+
+## 2026-02-11 (Sprint 11)
+
+**Sprint-11 Deliverables abgeschlossen.**
+
+Erstellte Code-Artefakte:
+
+- **Template-Cache** (`apps/export-worker/src/cache/template-cache.ts`)
+  LRU-Cache für DOCX-Template-Buffer: Konfigurierbare Max-Entries (TEMPLATE_CACHE_MAX_ENTRIES, default 50) und Max-Size (TEMPLATE_CACHE_MAX_SIZE_MB, default 100MB). `get()`/`set()` mit automatischer Eviction (LRU-Strategie). `stats()` für Monitoring (entryCount, totalSizeBytes, maxEntries, hitRate). `clear()` und `invalidate()` für Cache-Management.
+
+- **Pre-Warm Service** (`apps/export-worker/src/cache/pre-warm.ts`)
+  Pre-loads Top-N Templates bei Worker-Startup (fire-and-forget). Query: ExportJob-Tabelle nach templateVersionId gruppiert, sortiert nach Häufigkeit. Konfigurierbar via TEMPLATE_CACHE_PREWARM_COUNT (default 10). Fehler-tolerant: Einzelne Template-Fehler überspringen, Fatal-Errors loggen, Worker nicht blockieren. Performance-Logging (loaded, failed, durationMs, cacheStats).
+
+- **Template-Cache-Tests** (`apps/export-worker/src/__tests__/template-cache.test.ts`)
+  Tests für: set/get, LRU-Eviction, max-size Enforcement, stats, invalidate, clear, hit-rate Tracking.
+
+Nächste Schritte Team 05:
+
+- Batch-Export für mehrere Verträge.
+- Logo-Upload für Branding (S3-Integration).
+- DLQ-Dashboard-UI im Frontend.
+- Wasserzeichen-Support für Draft-Exports.
+
+## 2026-02-11 (Sprint 12)
+
+**Sprint-12 Deliverables abgeschlossen.**
+
+Erstellte Code-Artefakte:
+
+- **Batch-Export Routes** (`apps/api/src/modules/export/batch-routes.ts`, ~199 Zeilen)
+  POST /batch — Batch-Export (max 20 Verträge). Zod-Validierung. Ownership-Check in Transaktion. ExportJob pro Vertrag mit `batchId`. pgboss-Enqueue. GET /batch/:id — Aggregierter Batch-Status (completed/failed/pending).
+
+- **Logo-Upload Service** (`apps/api/src/modules/export/logo-upload.ts`, ~322 Zeilen)
+  POST /branding/style-templates/:id/logo — Logo-Upload (PNG/JPEG/SVG, max 2MB). Header-basierte Dimension-Detection für PNG (IHDR) und JPEG (SOF0/SOF2). S3-Upload mit Tenant-scoped Path. Audit-Logging.

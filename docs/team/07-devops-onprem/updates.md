@@ -166,7 +166,72 @@ Erstellte Artefakte:
 
 Nächste Schritte Team 07:
 
-- Sprint 9: K8s-Manifeste gegen K3s validieren (lokaler Test).
-- cert-manager Installation + Let's Encrypt ClusterIssuer.
+- Sprint 9: cert-manager + Let's Encrypt ClusterIssuer.
+
+## 2026-02-11 (Sprint 9)
+
+**Sprint-9 Deliverables abgeschlossen.**
+
+Erstellte Artefakte:
+
+- **cert-manager + Let's Encrypt ClusterIssuer** (`k8s/overlays/prod/cert-manager-issuer.yaml`, `k8s/overlays/staging/cert-manager-issuer.yaml`)
+  - Prod: ClusterIssuer `letsencrypt-prod` mit ACME HTTP01-Solver (nginx Ingress-Class). E-Mail für Zertifikats-Benachrichtigungen. Referenziert in bestehender Ingress-Konfiguration (`cert-manager.io/cluster-issuer` Annotation).
+  - Staging: ClusterIssuer `letsencrypt-staging` für Test-Zertifikate (Let's Encrypt Staging-API). Kustomization aktualisiert.
+  - Voraussetzung: cert-manager CRDs müssen im Cluster installiert sein (`kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.14.0/cert-manager.yaml`).
+
+Nächste Schritte Team 07:
+
+- Sprint 10: K8s-Manifeste gegen K3s validieren (lokaler Test).
 - External Secrets Operator Setup für Cloud-Deployments.
 - Backup-CronJob für PostgreSQL + S3-Replikation.
+- Monitoring-Alerting: PagerDuty/Opsgenie Integration für Prod.
+
+## 2026-02-11 (Sprint 10)
+
+**Sprint-10 Deliverables abgeschlossen.**
+
+Erstellte Artefakte:
+
+- **Backup-CronJob PostgreSQL** (`k8s/base/backup-cronjob.yaml`, `k8s/base/backup-configmap.yaml`)
+  Kubernetes CronJob: Täglicher pg_dump um 02:00 UTC. Backup-Script mit Timestamp-basiertem Dateinamen. Upload nach S3 (MinIO/AWS). Retention: 30 Tage (konfigurierbar via ConfigMap). Erfolgs-/Fehler-Benachrichtigung via Annotations. Resource-Limits (256Mi/250m). Kustomization aktualisiert.
+
+- **External Secrets Operator Setup** (`k8s/overlays/prod/external-secrets-operator.yaml`, `k8s/overlays/prod/external-secrets-sync.yaml`)
+  ClusterSecretStore mit AWS Secrets Manager Backend. ExternalSecret CRDs für 3 Secret-Gruppen: db-credentials (host, port, user, password, database), s3-credentials (endpoint, accessKey, secretKey, bucket), oidc-credentials (issuerUrl, clientId, clientSecret). Refresh-Intervall 1h. Prod-Kustomization aktualisiert.
+
+Nächste Schritte Team 07:
+
+- Monitoring-Alerting: PagerDuty/Opsgenie Integration für Prod.
+- Blue/Green Deployment-Strategie für Zero-Downtime-Updates.
+
+## 2026-02-11 (Sprint 11)
+
+**Sprint-11 Deliverables abgeschlossen.**
+
+Erstellte Artefakte:
+
+- **Loki Log-Aggregation** (`docker/loki/loki-config.yaml`, `docker/promtail/promtail-config.yaml`)
+  Loki: auth disabled (single-tenant dev), BoltDB-Shipper für Index, Filesystem-Storage. Retention 168h (7 Tage). Promtail: Docker-Container-Log-Scraping, Labels (container_name, compose_service, compose_project). Pipeline-Stages: Docker-Log-Parsing, Timestamp-Extraction. Docker-Compose: loki (Port 3100) + promtail Services unter `profiles: [observability]`.
+
+- **Alerting-Rules** (`docker/prometheus/alerting-rules.yml`)
+  5 Alert-Gruppen: API (HighErrorRate >5%, HighLatency P95 >2s, HighMemory >80%), Export (ExportFailureRate >10%, ExportQueueBacklog >50), Database (DBConnectionPoolExhausted >80%, DBHighLatency >100ms), Infrastructure (ContainerRestarting >3/5min, HighCpuUsage >85%), Business (NoExportsInLastHour, HighDlqCount >10). Severity-Labels (critical, warning, info).
+
+- **K8s Smoke-Test Script** (`k8s/scripts/smoke-test.sh`)
+  Bash-Script für K3s/K8s-Cluster-Validierung: Namespace-Check, Deployment-Rollout-Status, Service-Endpoints, Pod-Health, API-Health-Endpoint, PostgreSQL-Connectivity, RLS-Validation, ConfigMap/Secret-Existenz. Exit-Code 0/1 für CI-Integration. Konfigurierbar via NAMESPACE und TIMEOUT.
+
+Nächste Schritte Team 07:
+
+- Monitoring-Alerting: PagerDuty/Opsgenie Integration für Prod.
+- Blue/Green Deployment-Strategie für Zero-Downtime-Updates.
+- Horizontal Pod Autoscaler Tuning (Lasttest-basiert).
+
+## 2026-02-11 (Sprint 12)
+
+**Sprint-12 Deliverables abgeschlossen.**
+
+Erstellte Artefakte:
+
+- **Blue/Green Deployment Script** (`k8s/scripts/blue-green-deploy.sh`)
+  Zero-Downtime-Deployment: Blue/Green Slot-Wechsel. Health-Check, Service-Label-Switch, Rollback via `--rollback` Flag. Konfigurierbar: Namespace, Timeout, Health-URL. CI-Integration via Exit-Codes.
+
+- **HPA-Tuning** (`k8s/overlays/prod/hpa-tuned.yaml`, `hpa-api.yaml`, `hpa-worker.yaml`)
+  Optimierte HorizontalPodAutoscaler basierend auf k6 Load-Tests. API: min 2, max 8, CPU 70%, Memory 80%. Worker: min 1, max 4, CPU 60%. Scale-Down-Stabilisierung 300s, Scale-Up 60s.

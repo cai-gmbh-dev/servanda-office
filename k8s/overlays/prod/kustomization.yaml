@@ -6,7 +6,10 @@ namespace: servanda-office
 resources:
   - ../../base
   - external-secrets.yaml
+  - external-secrets-operator.yaml
+  - external-secrets-sync.yaml
   - ingress.yaml
+  - cert-manager-issuer.yaml
   - hpa-api.yaml
   - hpa-worker.yaml
 

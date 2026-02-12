@@ -13,11 +13,23 @@ const DEFAULT_TEMPLATE_PATH = resolve(__dirname, '../../templates/default.docx')
  * - Parameter substitution (date, currency, empty handling)
  * - Hierarchical numbering (§/Abs/lit)
  * - Style templates
+ *
+ * Sprint 11: Accepts optional pre-loaded template buffer from TemplateCache.
+ * When provided, skips filesystem read entirely (<1ms vs ~200ms).
+ *
+ * @param data - Export data with contract sections, answers, and metadata
+ * @param cachedTemplateBuffer - Optional pre-loaded DOCX template buffer from cache
  */
-export async function renderDocx(data: ExportData): Promise<Buffer> {
-  // Load the DOCX template
-  const templatePath = data.styleTemplatePath ?? DEFAULT_TEMPLATE_PATH;
-  const templateContent = readFileSync(templatePath);
+export async function renderDocx(data: ExportData, cachedTemplateBuffer?: Buffer): Promise<Buffer> {
+  // Load the DOCX template — use cached buffer if available, otherwise read from disk
+  let templateContent: Buffer;
+  if (cachedTemplateBuffer) {
+    templateContent = cachedTemplateBuffer;
+  } else {
+    const templatePath = data.styleTemplatePath ?? DEFAULT_TEMPLATE_PATH;
+    templateContent = readFileSync(templatePath);
+  }
+
   const zip = new PizZip(templateContent);
 
   const doc = new Docxtemplater(zip, {

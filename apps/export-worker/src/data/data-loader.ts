@@ -22,6 +22,8 @@ export interface ExportData {
   answers: Record<string, unknown>;
   sections: ExportSection[];
   styleTemplatePath?: string;
+  /** Pinned TemplateVersion ID — used as cache key for template buffers (Sprint 11) */
+  templateVersionId?: string;
 }
 
 export interface ExportSection {
@@ -69,7 +71,7 @@ export async function loadExportData(
     throw new Error(`TemplateVersion ${contract.templateVersionId} not found`);
   }
 
-  const structure = templateVersion.structure as TemplateSection[];
+  const structure = templateVersion.structure as unknown as TemplateSection[];
 
   // 3. Load all pinned ClauseVersions
   const clauseVersions = await prisma.clauseVersion.findMany({
@@ -87,7 +89,7 @@ export async function loadExportData(
       where: { id: stId },
     });
     if (styleTemplate) {
-      styleTemplatePath = styleTemplate.templateFile;
+      styleTemplatePath = styleTemplate.templateFile ?? undefined;
     }
   }
 
@@ -129,6 +131,7 @@ export async function loadExportData(
     answers,
     sections,
     styleTemplatePath,
+    templateVersionId: contract.templateVersionId,
   };
 }
 

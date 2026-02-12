@@ -6,6 +6,7 @@ namespace: servanda-office
 resources:
   - ../../base
   - sealed-secrets.yaml
+  - cert-manager-issuer.yaml
 
 patches:
   - path: namespace-patch.yaml

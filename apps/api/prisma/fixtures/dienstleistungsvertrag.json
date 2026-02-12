@@ -1,0 +1,307 @@
+{
+  "clauses": [
+    {
+      "title": "Vertragsgegenstand DV",
+      "jurisdiction": "DE",
+      "legalArea": "Dienstleistungsrecht",
+      "tags": ["dienstleistungsvertrag", "vertragsgegenstand"],
+      "versions": [
+        {
+          "content": "Der Auftragnehmer erbringt für den Auftraggeber folgende Dienstleistungen: {dienstleistung_beschreibung}. Der Leistungsumfang ergibt sich im Einzelnen aus der Leistungsbeschreibung in Anlage 1.",
+          "changeNote": "Initiale Version",
+          "parameters": {
+            "dienstleistung_beschreibung": {
+              "type": "text",
+              "label": "Beschreibung der Dienstleistungen",
+              "required": true
+            }
+          },
+          "rules": []
+        }
+      ]
+    },
+    {
+      "title": "Vergütung",
+      "jurisdiction": "DE",
+      "legalArea": "Dienstleistungsrecht",
+      "tags": ["dienstleistungsvertrag", "verguetung"],
+      "versions": [
+        {
+          "content": "Die Vergütung beträgt {verguetung} EUR {verguetung_typ}. Die Zahlung ist innerhalb von {zahlungsfrist} Tagen nach Rechnungseingang fällig.",
+          "changeNote": "Initiale Version",
+          "parameters": {
+            "verguetung": {
+              "type": "currency",
+              "label": "Vergütung (EUR)",
+              "required": true
+            },
+            "verguetung_typ": {
+              "type": "single_choice",
+              "label": "Vergütungsart",
+              "required": true,
+              "options": ["pauschal", "pro Stunde", "pro Monat"]
+            },
+            "zahlungsfrist": {
+              "type": "number",
+              "label": "Zahlungsfrist (Tage)",
+              "required": false,
+              "default": 14
+            }
+          },
+          "rules": []
+        }
+      ]
+    },
+    {
+      "title": "Laufzeit und Kündigung",
+      "jurisdiction": "DE",
+      "legalArea": "Dienstleistungsrecht",
+      "tags": ["dienstleistungsvertrag", "laufzeit", "kuendigung"],
+      "versions": [
+        {
+          "content": "Der Vertrag beginnt am {vertragsbeginn} und wird auf unbestimmte Zeit geschlossen. Er kann von jeder Partei mit einer Frist von {kuendigungsfrist} zum Monatsende gekündigt werden.",
+          "changeNote": "Initiale Version",
+          "parameters": {
+            "vertragsbeginn": {
+              "type": "date",
+              "label": "Vertragsbeginn",
+              "required": true
+            },
+            "kuendigungsfrist": {
+              "type": "text",
+              "label": "Kündigungsfrist",
+              "required": false,
+              "default": "3 Monate"
+            }
+          },
+          "rules": []
+        }
+      ]
+    },
+    {
+      "title": "Gewährleistung DV",
+      "jurisdiction": "DE",
+      "legalArea": "Dienstleistungsrecht",
+      "tags": ["dienstleistungsvertrag", "gewaehrleistung"],
+      "versions": [
+        {
+          "content": "Der Auftragnehmer gewährleistet, dass die Dienstleistungen fachgerecht und nach dem aktuellen Stand der Technik erbracht werden. Mängel sind innerhalb von {maengelfrist} Werktagen nach Anzeige zu beseitigen.",
+          "changeNote": "Initiale Version",
+          "parameters": {
+            "maengelfrist": {
+              "type": "number",
+              "label": "Mängelbeseitigungsfrist (Werktage)",
+              "required": false,
+              "default": 10
+            }
+          },
+          "rules": []
+        }
+      ]
+    },
+    {
+      "title": "Vertraulichkeit",
+      "jurisdiction": "DE",
+      "legalArea": "Dienstleistungsrecht",
+      "tags": ["dienstleistungsvertrag", "vertraulichkeit"],
+      "versions": [
+        {
+          "content": "Die Parteien verpflichten sich, alle im Rahmen dieses Vertrages erhaltenen vertraulichen Informationen geheim zu halten. Diese Verpflichtung gilt {vertraulichkeit_dauer} über die Beendigung des Vertrages hinaus.",
+          "changeNote": "Initiale Version",
+          "parameters": {
+            "vertraulichkeit_dauer": {
+              "type": "text",
+              "label": "Dauer der Vertraulichkeitspflicht nach Vertragsende",
+              "required": false,
+              "default": "2 Jahre"
+            }
+          },
+          "rules": [
+            {
+              "type": "requires",
+              "targetClauseTitle": "Vertragsgegenstand DV",
+              "severity": "hard",
+              "message": "Vertraulichkeitsklausel setzt die Vertragsgegenstand-Klausel voraus."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Haftung DV",
+      "jurisdiction": "DE",
+      "legalArea": "Dienstleistungsrecht",
+      "tags": ["dienstleistungsvertrag", "haftung"],
+      "versions": [
+        {
+          "content": "Die Haftung des Auftragnehmers ist auf {haftungssumme} EUR begrenzt, sofern nicht Vorsatz oder grobe Fahrlässigkeit vorliegt.",
+          "changeNote": "Initiale Version",
+          "parameters": {
+            "haftungssumme": {
+              "type": "currency",
+              "label": "Haftungshöchstsumme (EUR)",
+              "required": true
+            }
+          },
+          "rules": [
+            {
+              "type": "requires",
+              "targetClauseTitle": "Vergütung",
+              "severity": "hard",
+              "message": "Haftungsbegrenzung setzt die Vergütungsklausel voraus, da die Haftungssumme typischerweise in Relation zur Vergütung steht."
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "templates": [
+    {
+      "title": "Dienstleistungsvertrag (Standard)",
+      "description": "Standardmuster für einen Dienstleistungsvertrag nach deutschem Recht. Geeignet für Beratungs-, IT- und sonstige Dienstleistungsverträge.",
+      "category": "Dienstleistungsverträge",
+      "jurisdiction": "DE",
+      "legalArea": "Dienstleistungsrecht",
+      "tags": ["dienstleistungsvertrag", "standard", "deutsch"],
+      "sections": [
+        {
+          "title": "Leistungsbeschreibung",
+          "slots": [
+            {
+              "clauseTitle": "Vertragsgegenstand DV",
+              "type": "required"
+            },
+            {
+              "clauseTitle": "Vergütung",
+              "type": "required"
+            }
+          ]
+        },
+        {
+          "title": "Vertragsbedingungen",
+          "slots": [
+            {
+              "clauseTitle": "Laufzeit und Kündigung",
+              "type": "required"
+            },
+            {
+              "clauseTitle": "Gewährleistung DV",
+              "type": "optional"
+            }
+          ]
+        },
+        {
+          "title": "Vertraulichkeit",
+          "slots": [
+            {
+              "clauseTitle": "Vertraulichkeit",
+              "type": "optional"
+            }
+          ]
+        },
+        {
+          "title": "Schlussbestimmungen",
+          "slots": [
+            {
+              "clauseTitle": "Haftung DV",
+              "type": "required"
+            }
+          ]
+        }
+      ],
+      "interviewFlow": {
+        "title": "Dienstleistungsvertrag Interview",
+        "questions": [
+          {
+            "key": "dienstleistung_beschreibung",
+            "type": "text",
+            "label": "Welche Dienstleistungen sollen erbracht werden?",
+            "required": true,
+            "helpText": "Beschreiben Sie die zu erbringenden Dienstleistungen möglichst konkret. Detaillierte Leistungsbeschreibungen können in Anlage 1 ergänzt werden."
+          },
+          {
+            "key": "verguetung",
+            "type": "currency",
+            "label": "Wie hoch ist die vereinbarte Vergütung (EUR)?",
+            "required": true,
+            "helpText": "Geben Sie den Betrag in Euro ein. Die Vergütungsart (pauschal, pro Stunde oder pro Monat) wählen Sie im nächsten Schritt."
+          },
+          {
+            "key": "verguetung_typ",
+            "type": "single_choice",
+            "label": "Welche Vergütungsart soll gelten?",
+            "required": true,
+            "options": [
+              { "value": "pauschal", "label": "Pauschalvergütung" },
+              { "value": "pro Stunde", "label": "Stundenvergütung" },
+              { "value": "pro Monat", "label": "Monatliche Vergütung" }
+            ],
+            "helpText": "Wählen Sie die Abrechnungsform für die Vergütung."
+          },
+          {
+            "key": "zahlungsfrist",
+            "type": "number",
+            "label": "Zahlungsfrist in Tagen nach Rechnungseingang?",
+            "required": false,
+            "default": 14,
+            "helpText": "Üblich sind 14 oder 30 Tage. Bei Nichtangabe gelten 14 Tage."
+          },
+          {
+            "key": "vertragsbeginn",
+            "type": "date",
+            "label": "Wann soll der Vertrag beginnen?",
+            "required": true,
+            "helpText": "Datum des Vertragsbeginns."
+          },
+          {
+            "key": "kuendigungsfrist",
+            "type": "text",
+            "label": "Welche Kündigungsfrist soll gelten?",
+            "required": false,
+            "default": "3 Monate",
+            "helpText": "Üblich sind 1 bis 3 Monate zum Monatsende."
+          },
+          {
+            "key": "vertraulichkeit_gewuenscht",
+            "type": "yes_no",
+            "label": "Soll eine Vertraulichkeitsklausel aufgenommen werden?",
+            "required": true,
+            "default": true,
+            "helpText": "Empfohlen, wenn im Rahmen der Dienstleistung vertrauliche Informationen ausgetauscht werden."
+          },
+          {
+            "key": "vertraulichkeit_dauer",
+            "type": "text",
+            "label": "Wie lange soll die Vertraulichkeitspflicht nach Vertragsende gelten?",
+            "required": false,
+            "default": "2 Jahre",
+            "helpText": "Üblich sind 1 bis 5 Jahre nach Vertragsende.",
+            "conditions": [
+              {
+                "questionKey": "vertraulichkeit_gewuenscht",
+                "operator": "equals",
+                "value": true,
+                "logic": "show"
+              }
+            ]
+          },
+          {
+            "key": "maengelfrist",
+            "type": "number",
+            "label": "Frist zur Mängelbeseitigung (Werktage)?",
+            "required": false,
+            "default": 10,
+            "helpText": "Innerhalb dieser Frist muss der Auftragnehmer angezeigte Mängel beseitigen."
+          },
+          {
+            "key": "haftungssumme",
+            "type": "currency",
+            "label": "Bis zu welchem Betrag soll die Haftung begrenzt werden (EUR)?",
+            "required": true,
+            "helpText": "Die Haftungsbegrenzung gilt nicht bei Vorsatz oder grober Fahrlässigkeit."
+          }
+        ]
+      }
+    }
+  ]
+}

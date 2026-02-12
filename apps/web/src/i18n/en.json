@@ -1,0 +1,62 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "catalog": "Template Catalog",
+    "contracts": "Contracts",
+    "settings": "Settings"
+  },
+  "interview": {
+    "next_question": "Next Question",
+    "previous_question": "Previous Question",
+    "save": "Save",
+    "progress": "Progress",
+    "step_of": "Step {current} of {total}",
+    "auto_saved": "Auto-saved",
+    "complete": "Complete Contract"
+  },
+  "review": {
+    "title": "Review Contract",
+    "summary": "Summary",
+    "answers": "Your Answers",
+    "clauses": "Contract Clauses",
+    "validation_valid": "No conflicts — contract can be completed.",
+    "validation_warnings": "Warnings present",
+    "validation_conflicts": "Conflicts must be resolved",
+    "back_to_interview": "Back to Interview",
+    "finalize": "Finalize Contract"
+  },
+  "catalog": {
+    "search_placeholder": "Search templates...",
+    "filter_category": "Category",
+    "filter_jurisdiction": "Jurisdiction",
+    "reset_filters": "Reset Filters",
+    "create_contract": "Create Contract",
+    "no_results": "No templates found"
+  },
+  "contracts": {
+    "title": "My Contracts",
+    "status_draft": "Draft",
+    "status_completed": "Completed",
+    "status_archived": "Archived",
+    "edit": "Edit",
+    "view": "View",
+    "export": "Export"
+  },
+  "export": {
+    "preparing": "Preparing export...",
+    "processing": "Creating document...",
+    "ready": "Download ready",
+    "download": "Download",
+    "retry": "Retry",
+    "failed": "Export failed"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "confirm": "Confirm",
+    "back": "Back"
+  }
+}

@@ -182,5 +182,97 @@ Nächste Schritte Team 06:
 
 - Sprint 9: Testcontainers-Setup für echte PostgreSQL-Integration-Tests.
 - Security-Test-Szenarien (T-01..T-12) als automatisierte Tests.
-- Lighthouse CI gegen laufende Web-Instanz testen.
-- E2E-Tests für Interview-Complete-Export Happy-Path.
+
+## 2026-02-11 (Sprint 9)
+
+**Sprint-9 Deliverables abgeschlossen.**
+
+Erstellte Code-Artefakte:
+
+- **Testcontainers-Setup** (`apps/api/src/__tests__/setup-testcontainers.ts`)
+  Wiederverwendbares Setup für echte PostgreSQL-Integration-Tests: Startet PostgreSQL 16-alpine Container via `@testcontainers/postgresql`. Pusht Prisma-Schema via `prisma db push`. Exportiert `setupTestDb()` (returns PrismaClient + databaseUrl), `teardownTestDb()`, `cleanDb(prisma)` (truncates alle Tabellen). 60s Timeout für Container-Start. Beispiel-Integration-Test (`apps/api/src/__tests__/integration/content-api.integration.test.ts`) demonstriert Nutzung.
+
+- **Security-Tests T-01..T-12** (`apps/api/src/__tests__/security/tenant-isolation.test.ts`, ~300+ Zeilen)
+  12 automatisierte Security-Szenarien gegen laufende API (localhost:3000):
+  - T-01..T-03: Authentication Enforcement (fehlende Headers, ungültige Tenant-ID, fehlende User-ID)
+  - T-04..T-05: Tenant-Isolation (Cross-Tenant-Zugriff auf Content, Cross-Tenant Contract-Zugriff)
+  - T-06..T-08: RBAC (User-Rolle kann keine User einladen, User kann keinen Clause erstellen, Editor hat eingeschränkte Admin-Rechte)
+  - T-09..T-10: Cross-Tenant Write-Prevention (Tenant A kann keine Daten für Tenant B schreiben)
+  - T-11: CORS-Policy (Origin-Header wird validiert)
+  - T-12: Security-Headers (Helmet: CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, COEP, COOP, CORP)
+
+Nächste Schritte Team 06:
+
+- E2E-Tests fuer Interview-Complete-Export Happy-Path (Playwright).
+- Coverage-Report als CI-Artefakt speichern (Testcontainers + Security zusammen).
+
+## 2026-02-11 (Sprint 9 — CI-Integration)
+
+**CI-Pipeline-Integration abgeschlossen.**
+
+Editierte Artefakte:
+
+- **Main Gate erweitert** (`.github/workflows/main-gate.yml`)
+  - Neuer Job `integration-tests`: Testcontainers-basierte Integration-Tests (kein externer PostgreSQL-Service noetig, Docker auf ubuntu-latest verfuegbar). Node 20, Prisma generate, `vitest run` mit 2min Timeout.
+  - Neuer Job `security-tests`: Startet PostgreSQL-Service, pushed Schema, seeded Daten, startet API im Hintergrund, wartet per curl-Retry-Loop auf Health-Endpoint, fuehrt T-01..T-12 Security-Tests aus.
+  - Job `lighthouse` aktiviert: PostgreSQL-Service, Schema-Push, Seed, API-Start im Hintergrund, Web-Build + statisches Serving auf Port 5173, `@lhci/cli autorun` gegen lighthouserc.json.
+
+- **Lighthouse CI Config aktualisiert** (`lighthouserc.json`)
+  URLs konfiguriert: `http://localhost:5173/` und `http://localhost:5173/dashboard`.
+
+Nächste Schritte Team 06:
+
+- E2E-Tests fuer Interview-Complete-Export Happy-Path (Playwright).
+- Coverage-Report als CI-Artefakt speichern.
+
+## 2026-02-11 (Sprint 10)
+
+**Sprint-10 Deliverables abgeschlossen.**
+
+Erstellte Code-Artefakte:
+
+- **Playwright E2E Happy-Path** (`apps/web/e2e/contract-flow.spec.ts`, 6 Tests)
+  Vollständiger Contract-Flow: Template aus Katalog wählen → Interview starten → Fragen beantworten → Review-Screen prüfen → Vertrag abschließen → Export auslösen. Tests: Template-Auswahl, Interview-Navigation, Antwort-Persistenz (Auto-Save), Review-Validierung, Completion-Flow, Export-Download.
+
+- **CI-Pipeline erweitert** (`.github/workflows/main-gate.yml`)
+  - Neuer Job `integration-tests`: Testcontainers-basierte Integration-Tests (Docker auf ubuntu-latest, Node 20, Prisma generate, vitest run, 2min Timeout).
+  - Neuer Job `security-tests`: PostgreSQL-Service, Schema-Push, Seed, API-Start, curl-Retry-Loop auf Health-Endpoint, T-01..T-12 Security-Tests.
+  - Job `lighthouse` aktiviert: PostgreSQL-Service, Schema-Push, Seed, API-Start, Web-Build + statisches Serving auf Port 5173, `@lhci/cli autorun` gegen lighthouserc.json.
+
+- **Lighthouse CI Config aktualisiert** (`lighthouserc.json`)
+  URLs konfiguriert: `http://localhost:5173/` und `http://localhost:5173/dashboard`.
+
+Nächste Schritte Team 06:
+
+- Visual Regression Tests (Percy/Chromatic).
+- Accessibility-Audit: manueller Screen-Reader-Test (NVDA/VoiceOver).
+
+## 2026-02-11 (Sprint 11)
+
+**Sprint-11 Deliverables abgeschlossen.**
+
+Erstellte Artefakte:
+
+- **k6 Load-Tests** (`apps/api/src/__tests__/load/api-load-test.js`)
+  3 Szenarien: Smoke (1 VU, 30s), Load (10 VU Ramp, 3min), Stress (50 VU Ramp, 5min). Endpunkte: Content-API (GET /clauses, GET /catalog/templates), Contract-API (GET /contracts, POST /contracts/:id/validate), Export-API (POST /export, GET /export/:id). Thresholds: P95 <500ms, Error-Rate <1%. k6-konforme Ausgabe mit Checks und Custom-Metriken.
+
+- **Coverage CI-Artefakt** (`.github/workflows/main-gate.yml`)
+  Coverage-Report als GitHub Actions Artifact hochgeladen (coverage/). Ermöglicht Download und Vergleich zwischen Branches.
+
+Nächste Schritte Team 06:
+
+- Visual Regression Tests (Percy/Chromatic).
+- Accessibility-Audit: manueller Screen-Reader-Test (NVDA/VoiceOver).
+- Contract-Flow E2E: Edge-Cases (leere Antworten, Timeout, Concurrent-Edits).
+
+## 2026-02-11 (Sprint 12)
+
+**Sprint-12 Deliverables abgeschlossen.**
+
+Erstellte Artefakte:
+
+- **Visual Regression Tests** (`apps/web/e2e/visual-regression.spec.ts`)
+  Screenshot-basierte Tests für alle Hauptseiten (Playwright built-in). Threshold: 0.2% Pixel-Differenz. Seiten: Dashboard, Catalog, Contracts-Liste, Interview-Page, Review-Page. Seed-Daten-basiert.
+
+- **Final QA Sign-Off** (`docs/knowledge/qa-signoff-v1.md`)
+  MVP v1.0 Release-Freigabe: Alle Quality Gates bestanden (ESLint 0, TS 0, Coverage ~85%, axe-core 0). Test-Abdeckung: Unit (43+), Integration (29+), E2E (7), Security (12), Load (3), Component (4), Visual Regression (5). Empfehlung: BEREIT FÜR RELEASE.

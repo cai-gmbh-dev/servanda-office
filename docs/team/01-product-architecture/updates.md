@@ -146,7 +146,106 @@ Sprint-8 Aktivitäten:
 
 Nächste Schritte Team 01:
 
-- Sprint 9: Modul-Boundaries dokumentieren (welche Module welche Prisma-Tabellen ansprechen dürfen).
+- Sprint 9: Breaking-Change-Policy formalisieren (Deprecation-Timeline, Migration-Guide).
+- DevOps/Admin-Anleitung + User-Guides erstellen.
+
+## 2026-02-11 (Sprint 9)
+
+**Sprint-9 Deliverables abgeschlossen.**
+
+Erstellte Artefakte:
+
+- **Breaking-Change-Policy ADR-005** (`docs/knowledge/adr-005-breaking-change-policy.md`)
+  Formalisierte Policy: SemVer für API + Prisma-Schema. Deprecation-Timeline (2 Minor-Versionen / 8 Wochen). Breaking-Change-Klassifikation (API-Contract, DB-Schema, Auth, Config). Migration-Guide-Template. `X-Deprecated-At` + `X-Sunset-Date` Response-Headers. CI-Gate: Deprecation-Linter prüft entfernte Endpoints. Changelog-Format (Keep a Changelog + eigene Erweiterungen).
+
+- **DevOps/Admin-Anleitung** (`docs/guides/devops-admin-guide.md`)
+  Vollständige Setup-Anleitung: Voraussetzungen, Docker-Compose Dev-Setup, Kubernetes Deployment (Kustomize), Monitoring (Prometheus + Grafana), Backup/Restore, Keycloak-Administration, Troubleshooting. On-Prem-spezifische Anweisungen (MinIO, LDAP, Air-Gap).
+
+- **User-Anleitungen nach Rollen** (`docs/guides/user-guide-{admin,editor,enduser}.md`)
+  3 rollenspezifische Guides: Admin (Benutzerverwaltung, Kanzlei-Einstellungen, Branding, Audit-Log), Editor (Klausel-Erstellung, Template-Verwaltung, Publishing-Workflow, Reviewer-Zuweisung), End-User (Vertragserstellung, Interview-Flow, Review-Screen, Export).
+
+Sprint-9 Aktivitäten:
+
+- Sprint-9 Scope definiert: 10 Deliverables über 5 Teams (01, 02, 04, 06, 07).
+- Breaking-Change-Policy als ADR-005 formalisiert.
+- DevOps/Admin-Anleitung und User-Guides als Dokumentations-Deliverables erstellt.
+- Review der Keycloak Admin API (Team 02), Review-Screen (Team 04), Security-Tests (Team 06), cert-manager (Team 07).
+- @testcontainers/postgresql als DevDependency installiert. TypeScript-Kompilierung: 0 Fehler.
+
+Nächste Schritte Team 01:
+
+- Sprint 10: Modul-Boundaries dokumentieren (welche Module welche Prisma-Tabellen ansprechen dürfen).
 - Performance-Baseline ermitteln (API-Latenz mit Seed-Daten).
 - Cross-Module-Event-System evaluieren (für Audit-Event-Propagation).
-- Breaking-Change-Policy formalisieren (Deprecation-Timeline, Migration-Guide).
+- API-Dokumentation (OpenAPI/Swagger) erstellen.
+
+## 2026-02-11 (Sprint 10)
+
+**Sprint-10 Deliverables abgeschlossen (Integration + E2E Validation + Production Polish).**
+
+Erstellte Artefakte:
+
+- **OpenAPI/Swagger API-Dokumentation** (`docs/api/openapi.yaml`)
+  OpenAPI 3.0 Spezifikation aller API-Endpoints: Identity (8 Endpoints), Content (12 Endpoints inkl. Batch-Content + Changelog + Publishing-Gates + Reviewer), Contract (6 Endpoints), Export (3 Endpoints + DLQ 4 Endpoints + Branding 5 Endpoints). Shared Schemas, Security-Schemes (Bearer JWT), Error-Responses, Pagination-Pattern. Tags nach Modulen gruppiert.
+
+- **Modul-Boundaries Dokumentation** (`docs/knowledge/module-boundaries-v1.md`)
+  Modul→Tabelle Zugriffsmatrix (4 Module × 12 Tabellen). Cross-Module-Regeln: Keine direkten DB-Zugriffe über Modulgrenzen, In-Process TypeScript-Interfaces für Kommunikation. Shared Package als einzige geteilte Dependency. Event-Propagation-Empfehlung für Audit. Prisma-Client-Scope pro Modul dokumentiert.
+
+Sprint-10 Aktivitäten:
+
+- Sprint-10 Scope definiert: 10 Deliverables über 6 Teams (01, 02, 04, 05, 06, 07).
+- Prisma-Schema-Fix: `keycloakId` Feld zum User-Model hinzugefügt (Prerequisite für Keycloak-Integration).
+- Architektur-Review aller Sprint-10-Deliverables (Keycloak-Integration, Rate-Limiting, E2E-Tests, Backup-Strategie).
+- TypeScript-Kompilierung: 0 Fehler nach Schema-Fix.
+
+Nächste Schritte Team 01:
+
+- Cross-Module-Event-System evaluieren (für Audit-Event-Propagation).
+- Final MVP Release vorbereiten.
+
+## 2026-02-11 (Sprint 11)
+
+**Sprint-11 Deliverables abgeschlossen (MVP Release Preparation).**
+
+Erstellte Artefakte:
+
+- **MVP Release-Kandidat-Checkliste** (`docs/knowledge/release-checklist-v1.md`)
+  Go/No-Go-Checkliste: Quality Gates (ESLint 0, TS 0, Coverage ≥80%, axe-core 0), Deployment-Readiness (K8s validiert, Backup, cert-manager), Security (12 Tests, Rate-Limiting, MFA, RLS), Rollback-Plan.
+
+- **Tech-Stack-Review BB-001..007** (`docs/knowledge/tech-stack-review-v1.md`)
+  Alle Architektur-Entscheidungen nach 11 Sprints Implementation validiert und bestätigt. Keine Revision nötig.
+
+- **API Performance-Baseline** (`docs/knowledge/performance-baseline-v1.md`)
+  Latenz-Messungen aller API-Endpunkte mit Seed-Daten. P50/P95/P99 Werte. Skalierungs-Empfehlungen.
+
+Sprint-11 Aktivitäten:
+
+- Sprint-11 Scope: 10 Deliverables über alle 7 Teams orchestriert.
+- TypeScript-Kompilierung: 0 Fehler nach Fixes (routes.ts AuditAction-Import, pre-warm.ts select-Clause, data-loader.ts Typ-Casting).
+
+Nächste Schritte Team 01:
+
+- Sprint 12: Final MVP Release + Pilot-Rollout.
+- Cross-Module-Event-System evaluieren.
+- Release-Notes für MVP v1.0.
+
+## 2026-02-11 (Sprint 12)
+
+**Sprint-12 Deliverables abgeschlossen (Final MVP Release + Pilot-Readiness).**
+
+Erstellte Artefakte:
+
+- **Release-Notes v1.0** (`docs/knowledge/release-notes-v1.md`)
+  Vollständige MVP Release-Notes: Highlights (Multi-Tenant, Guided Builder, Version-Pinning, DOCX-Export, RBAC+MFA, Vier-Augen-Prinzip). Features nach Epic (E1-E8). Technische Details (Architektur, Stack, ADRs). Known Limitations.
+
+- **Cross-Module-Event-Evaluierung** (`docs/knowledge/cross-module-events-v1.md`)
+  Analyse des aktuellen Zustands (direkte Audit-Calls in Handlern). Drei Optionen evaluiert: Node.js EventEmitter, Mediator-Pattern, Message-Broker. Empfehlung: EventEmitter als Phase-2-Feature, MVP bleibt bei direkten Calls.
+
+Sprint-12 Aktivitäten:
+
+- Sprint-12 Scope: 10 Deliverables über alle 7 Teams orchestriert.
+- TypeScript-Kompilierung: 0 Fehler nach Fixes (session-hardening.ts, batch-routes.ts, logo-upload.ts).
+- AuditAction-Typ erweitert: `session.fingerprint_mismatch`, `session.logout` hinzugefügt.
+- Prisma-Client regeneriert für `batchId`-Feld in ExportJob.
+
+**MVP v1.0 ist release-ready. Alle 12 Sprints mit 100+ Deliverables abgeschlossen.**

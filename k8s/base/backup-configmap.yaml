@@ -1,0 +1,20 @@
+# ConfigMap for PostgreSQL Backup CronJob
+# Non-sensitive configuration for backup job parameters
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backup-config
+  namespace: servanda-office
+  labels:
+    app.kubernetes.io/name: backup-config
+    app.kubernetes.io/component: backup
+    app.kubernetes.io/part-of: servanda-office
+data:
+  # S3 bucket for storing backups
+  S3_BUCKET: servanda-backups
+  # Prefix/folder within the bucket
+  S3_PREFIX: "postgres/"
+  # Number of days to retain backups (older ones are deleted)
+  BACKUP_RETENTION_DAYS: "30"
+  # Extra arguments passed to pg_dump
+  PGDUMP_EXTRA_ARGS: "--no-owner --no-privileges"

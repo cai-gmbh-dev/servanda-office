@@ -160,3 +160,76 @@ Nächste Schritte Team 02:
 - Passwort-Policies im Realm konfigurieren (Länge, Komplexität, Ablauf).
 - CSRF-Token-Handling für SPA evaluieren.
 - Rate-Limiting für Auth-Endpoints implementieren.
+
+## 2026-02-11 (Sprint 9)
+
+**Sprint-9 Deliverables abgeschlossen.**
+
+Erstellte Code-Artefakte:
+
+- **Keycloak Admin API Service** (`apps/api/src/services/keycloak-admin.ts`, ~290 Zeilen)
+  `KeycloakAdminService` Klasse als Wrapper um die Keycloak Admin REST API. Verwendet nativen `fetch` (keine zusätzlichen Dependencies). Admin-Token-Beschaffung via Resource Owner Password Credentials Grant gegen Master-Realm mit automatischem Caching (minus 30s Sicherheitspuffer). User-CRUD: `createUser()` (gibt Keycloak-ID zurück, parsed Location-Header), `updateUser()`, `deleteUser()`, `enableUser()`, `disableUser()`. MFA: `requireMfa()` setzt CONFIGURE_TOTP Required Action (liest bestehende Actions, merged). Role-Mapping: `assignRealmRole()` (Zwei-Schritt: Role-Lookup nach ID, dann Role-Mapping POST). Error-Isolation: Alle Methoden fangen Fehler ab und loggen via pino — Keycloak-Sync blockiert nie die Hauptoperation. Konfiguration über 5 Env-Vars mit Dev-Defaults. Singleton-Export `keycloakAdmin`.
+
+- **MFA TOTP-Konfiguration** (`docker/keycloak/realm-export.json` erweitert)
+  OTP Policy: TOTP mit HmacSHA1, 6 Digits, 30s Intervall, LookAhead 1, Code nicht wiederverwendbar. Required Actions: CONFIGURE_TOTP (Priorität 10, enabled), UPDATE_PASSWORD, UPDATE_PROFILE, VERIFY_EMAIL, TERMS_AND_CONDITIONS (disabled). Custom Authentication Flow `servanda-browser`: Cookie-Check (ALTERNATIVE) → Forms-Sub-Flow (ALTERNATIVE) mit Username/Password (REQUIRED) → Conditional OTP Sub-Flow (CONDITIONAL) mit `conditional-user-role` Authenticator (config: condUserRole=admin, negate=false) + OTP-Form (REQUIRED). Realm-Level `browserFlow` auf `servanda-browser` gesetzt. Dev-Admin-User (`admin@musterkanzlei.de`) hat `requiredActions: ["CONFIGURE_TOTP"]` — wird beim nächsten Login zur TOTP-Einrichtung aufgefordert.
+
+Nächste Schritte Team 02:
+
+- Sprint 10: Keycloak Admin API in Identity-Routes integrieren (Sync bei invite/activate/deactivate/delete).
+- Passwort-Policies im Realm konfigurieren (Länge, Komplexität, Ablauf).
+- CSRF-Token-Handling für SPA evaluieren.
+- Rate-Limiting für Auth-Endpoints implementieren.
+- Keycloak Admin API Unit-Tests schreiben (Mock-fetch).
+
+## 2026-02-11 (Sprint 10)
+
+**Sprint-10 Deliverables abgeschlossen.**
+
+Erstellte Code-Artefakte:
+
+- **Keycloak Admin API in Identity-Routes integriert** (`apps/api/src/modules/identity/routes.ts`)
+  Alle User-Lifecycle-Operationen synchronisieren jetzt mit Keycloak: POST /users/invite ruft `keycloakAdmin.createUser()` + `assignRealmRole()`. PATCH /users/:id (Role-Change) ruft `keycloakAdmin.assignRealmRole()`. POST /users/:id/activate ruft `keycloakAdmin.enableUser()`. POST /users/:id/deactivate ruft `keycloakAdmin.disableUser()`. DELETE /users/:id ruft `keycloakAdmin.deleteUser()`. Alle Sync-Aufrufe sind error-isolated (Keycloak-Fehler blockieren nicht die DB-Operation). `keycloakId` wird beim Invite in der DB gespeichert.
+
+- **Rate-Limiting Middleware** (`apps/api/src/middleware/rate-limit.ts`)
+  In-Memory Rate-Limiter: `authRateLimiter` (20 Requests/Minute für Auth-Endpoints), `apiRateLimiter` (200 Requests/Minute für allgemeine API). Sliding-Window pro IP. Cleanup-Intervall (60s) für abgelaufene Einträge. HTTP 429 mit Retry-After-Header.
+
+- **Passwort-Policies im Realm** (`docker/keycloak/realm-export.json`)
+  `passwordPolicy`: Mindestlänge 12 Zeichen, 1 Großbuchstabe, 1 Kleinbuchstabe, 1 Ziffer, 1 Sonderzeichen, kein Username, Passwort-History (3 letzte Passwörter).
+
+- **Prisma-Schema erweitert** (`apps/api/prisma/schema.prisma`)
+  `keycloakId String? @map("keycloak_id") @db.VarChar(255)` zum User-Model hinzugefügt für Keycloak↔DB-Mapping.
+
+Nächste Schritte Team 02:
+
+- Session-Management-Härtung (Token-Rotation, Logout-Propagation).
+- Audit-Service-Integration für Rate-Limit-Events.
+
+## 2026-02-11 (Sprint 11)
+
+**Sprint-11 Deliverables abgeschlossen.**
+
+Erstellte Artefakte:
+
+- **Keycloak Admin API Unit-Tests** (`apps/api/src/services/__tests__/keycloak-admin.test.ts`)
+  Vollständige Test-Suite mit Mock-fetch: Token-Beschaffung + Caching, createUser (Location-Header-Parsing), updateUser, deleteUser, enableUser, disableUser, requireMfa (CONFIGURE_TOTP Required Action), assignRealmRole (Zwei-Schritt: Role-Lookup + Mapping). Error-Isolation-Tests (Keycloak-Fehler blockieren nicht Hauptoperation).
+
+- **CSRF-Evaluierung** (`docs/knowledge/csrf-evaluation-v1.md`)
+  Analyse: SameSite=Lax Cookies (Browser-Default seit Chrome 80) + Bearer-Token-Authentifizierung machen explizite CSRF-Tokens für SPAs überflüssig. Empfehlung: Kein CSRF-Token-Handling implementieren, stattdessen SameSite-Cookie-Policy sicherstellen und CORS-Konfiguration als Defense-in-Depth.
+
+Nächste Schritte Team 02:
+
+- Session-Management-Härtung (Token-Rotation, Logout-Propagation).
+- Audit-Service-Integration für Rate-Limit-Events.
+- Keycloak Backup-Strategie (Realm-Export-Automatisierung).
+
+## 2026-02-11 (Sprint 12)
+
+**Sprint-12 Deliverables abgeschlossen.**
+
+Erstellte Artefakte:
+
+- **Session-Hardening Middleware** (`apps/api/src/middleware/session-hardening.ts`, ~600 Zeilen)
+  Token-Fingerprinting: SHA-256 aus User-Agent + /24-Subnet, `sid_fp`-Claim-Validierung. Idle-Timeout: 30min konfigurierbar (SESSION_IDLE_TIMEOUT_MS). Concurrent-Session-Limiting: Max 3 aktive Sessions pro User. Logout-Handler mit Keycloak-Propagation. Backchannel-Logout-Handler für Keycloak-Webhook (logout_token JWT). In-Memory Session-Stores mit periodischem Cleanup.
+
+- **Keycloak Backup-Strategie** (`docs/knowledge/keycloak-backup-strategy-v1.md`)
+  Realm-Export-Automatisierung: K8s CronJob täglicher Export um 03:00 UTC via `kcadm.sh`. S3-Upload mit Komprimierung. Recovery-Playbook. Retention: 30 Tage täglich, 1 Jahr monatlich.

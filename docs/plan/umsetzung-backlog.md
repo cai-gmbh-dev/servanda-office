@@ -70,6 +70,54 @@ Ziel: Den strategischen Umsetzungsplan in konkrete, teamübergreifende Arbeitspa
 - [x] Component-Tests React + axe-core CI Aktivierung (Owner: Team 06, Ref: `apps/web/src/`, `.github/workflows/`) ✓ 2026-02-11
 - [x] Prod-Overlay + Ingress-Controller + On-Prem Overlay (Owner: Team 07, Ref: `k8s/overlays/`) ✓ 2026-02-11
 
+## Sprint 9 (E2E + Security-Hardening + Dokumentation)
+- [x] Breaking-Change-Policy ADR-005 (Owner: Team 01, Ref: `docs/knowledge/adr-005-breaking-change-policy.md`) ✓ 2026-02-11
+- [x] DevOps/Admin-Anleitung: Setup + Deployment + Monitoring (Owner: Team 01 + 07, Ref: `docs/guides/devops-admin-guide.md`) ✓ 2026-02-11
+- [x] User-Anleitungen nach Rollen: Admin/Editor/User (Owner: Team 01, Ref: `docs/guides/user-guide-*.md`) ✓ 2026-02-11
+- [x] Keycloak Admin API Integration für User-Sync (Owner: Team 02, Ref: `apps/api/src/services/keycloak-admin.ts`) ✓ 2026-02-11
+- [x] MFA TOTP-Konfiguration für Admins (Owner: Team 02, Ref: `docker/keycloak/realm-export.json`) ✓ 2026-02-11
+- [x] Batch-Clause-Content-Endpoint für Live-Preview (Owner: Team 04, Ref: `apps/api/src/modules/content/routes.ts`) ✓ 2026-02-11
+- [x] Review-Screen vor Contract Completion (Owner: Team 04, Ref: `apps/web/src/pages/ReviewPage.tsx`) ✓ 2026-02-11
+- [x] Testcontainers-Setup für PostgreSQL-Integration-Tests (Owner: Team 06, Ref: `apps/api/src/__tests__/`) ✓ 2026-02-11
+- [x] Security-Test-Szenarien T-01..T-12 automatisieren (Owner: Team 06, Ref: `apps/api/src/__tests__/security/`) ✓ 2026-02-11
+- [x] cert-manager + Let's Encrypt ClusterIssuer (Owner: Team 07, Ref: `k8s/overlays/prod/`) ✓ 2026-02-11
+
+## Sprint 10 (Integration + E2E Validation + Production Polish)
+- [x] OpenAPI/Swagger API-Dokumentation aller Endpoints (Owner: Team 01, Ref: `docs/api/openapi.yaml`) ✓ 2026-02-11
+- [x] Modul-Boundaries + Cross-Module-Regeln dokumentieren (Owner: Team 01, Ref: `docs/knowledge/module-boundaries-v1.md`) ✓ 2026-02-11
+- [x] Keycloak Admin API in Identity-Routes integrieren (Owner: Team 02, Ref: `apps/api/src/modules/identity/routes.ts`) ✓ 2026-02-11
+- [x] Passwort-Policies Realm + Rate-Limiting Auth-Endpoints (Owner: Team 02, Ref: `docker/keycloak/realm-export.json`, `apps/api/src/middleware/`) ✓ 2026-02-11
+- [x] Export-Trigger aus ReviewPage + Keyboard-Navigation Interview (Owner: Team 04, Ref: `apps/web/src/pages/`) ✓ 2026-02-11
+- [x] Export-Pipeline E2E-Validierung mit Seed-Daten (Owner: Team 05, Ref: `apps/export-worker/src/__tests__/`) ✓ 2026-02-11
+- [x] Playwright E2E Happy-Path: Interview→Review→Complete→Export (Owner: Team 06, Ref: `apps/web/e2e/`) ✓ 2026-02-11
+- [x] CI-Pipeline: Testcontainers + Security-Tests integrieren (Owner: Team 06, Ref: `.github/workflows/`) ✓ 2026-02-11
+- [x] Lighthouse CI gegen laufende Web-Instanz aktivieren (Owner: Team 06, Ref: `.github/workflows/main-gate.yml`) ✓ 2026-02-11
+- [x] Backup-CronJob PostgreSQL + External Secrets Operator Setup (Owner: Team 07, Ref: `k8s/`) ✓ 2026-02-11
+
+## Sprint 11 (MVP Release Preparation)
+- [x] MVP Release-Kandidat-Checkliste + Tech-Stack-Review BB-001..007 (Owner: Team 01, Ref: `docs/knowledge/release-checklist-v1.md`, `docs/knowledge/tech-stack-review-v1.md`) ✓ 2026-02-11
+- [x] API Performance-Baseline Dokumentation (Owner: Team 01, Ref: `docs/knowledge/performance-baseline-v1.md`) ✓ 2026-02-11
+- [x] Keycloak Admin API Unit-Tests + CSRF-Evaluierung (Owner: Team 02, Ref: `apps/api/src/services/__tests__/keycloak-admin.test.ts`, `docs/knowledge/csrf-evaluation-v1.md`) ✓ 2026-02-11
+- [x] Content-Import CLI für Verlags-Content (Owner: Team 03, Ref: `apps/api/src/modules/content/import.ts`, `apps/api/src/modules/content/import.test.ts`) ✓ 2026-02-11
+- [x] Responsive Design Interview + Review (Owner: Team 04, Ref: `apps/web/src/styles/responsive.css`) ✓ 2026-02-11
+- [x] Changelog-UI Frontend (Owner: Team 04, Ref: `apps/web/src/components/ChangelogPanel.tsx`) ✓ 2026-02-11
+- [x] Export-Performance-Optimierung Template-Caching (Owner: Team 05, Ref: `apps/export-worker/src/cache/template-cache.ts`, `apps/export-worker/src/cache/pre-warm.ts`) ✓ 2026-02-11
+- [x] k6 Load-Tests + Coverage-Report CI-Artefakt (Owner: Team 06, Ref: `apps/api/src/__tests__/load/api-load-test.js`) ✓ 2026-02-11
+- [x] Log-Aggregation Loki + Alerting-Rules (Owner: Team 07, Ref: `docker/loki/`, `docker/promtail/`, `docker/prometheus/alerting-rules.yml`) ✓ 2026-02-11
+- [x] K8s Smoke-Test Script K3s-Validierung (Owner: Team 07, Ref: `k8s/scripts/smoke-test.sh`) ✓ 2026-02-11
+
+## Sprint 12 (Final MVP Release + Pilot-Readiness)
+- [x] Release-Notes v1.0 + Cross-Module-Event-Evaluierung (Owner: Team 01, Ref: `docs/knowledge/release-notes-v1.md`, `docs/knowledge/cross-module-events-v1.md`) ✓ 2026-02-11
+- [x] Session-Management-Härtung + Keycloak-Backup (Owner: Team 02, Ref: `apps/api/src/middleware/session-hardening.ts`, `docs/knowledge/keycloak-backup-strategy-v1.md`) ✓ 2026-02-11
+- [x] Pilot-Content: Dienstleistungsvertrag + NDA Templates (Owner: Team 03, Ref: `apps/api/prisma/fixtures/dienstleistungsvertrag.json`, `apps/api/prisma/fixtures/nda.json`) ✓ 2026-02-11
+- [x] Drag-and-Drop Klausel-Reihenfolge (Owner: Team 04, Ref: `apps/web/src/components/ClauseReorderPanel.tsx`) ✓ 2026-02-11
+- [x] i18n-Framework-Setup (Owner: Team 04, Ref: `apps/web/src/i18n/`) ✓ 2026-02-11
+- [x] Batch-Export für mehrere Verträge (Owner: Team 05, Ref: `apps/api/src/modules/export/batch-routes.ts`) ✓ 2026-02-11
+- [x] Logo-Upload für Kanzlei-Branding (Owner: Team 05, Ref: `apps/api/src/modules/export/logo-upload.ts`) ✓ 2026-02-11
+- [x] Visual Regression Tests + Final QA Sign-Off (Owner: Team 06, Ref: `apps/web/e2e/visual-regression.spec.ts`, `docs/knowledge/qa-signoff-v1.md`) ✓ 2026-02-11
+- [x] Blue/Green Deployment-Strategie (Owner: Team 07, Ref: `k8s/scripts/blue-green-deploy.sh`) ✓ 2026-02-11
+- [x] HPA-Tuning basierend auf k6 Load-Tests (Owner: Team 07, Ref: `k8s/overlays/prod/hpa-tuned.yaml`) ✓ 2026-02-11
+
 ## Definition of Ready (DoR)
 - User Story mit Akzeptanzkriterien und betroffenen Teams dokumentiert
 - Abhängigkeiten + Risiken benannt

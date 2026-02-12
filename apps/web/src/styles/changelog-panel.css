@@ -1,0 +1,424 @@
+/**
+ * Changelog Panel Styles — Sprint 11 (Team 04)
+ *
+ * Slide-over panel from right side with timeline display.
+ * Color-coded change types and legal impact badges.
+ */
+
+/* ================================================================== */
+/*  1. BACKDROP                                                        */
+/* ================================================================== */
+
+.changelog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 1040;
+  animation: changelog-fade-in 0.2s ease;
+}
+
+@keyframes changelog-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ================================================================== */
+/*  2. PANEL                                                           */
+/* ================================================================== */
+
+.changelog-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: min(480px, 90vw);
+  height: 100vh;
+  z-index: 1050;
+  background: var(--color-bg);
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  animation: changelog-slide-in 0.3s ease;
+}
+
+@keyframes changelog-slide-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+/* ---- Header ---- */
+.changelog-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-6);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.changelog-panel__title {
+  font-size: var(--font-size-xl, 1.25rem);
+  font-weight: 700;
+  margin: 0;
+}
+
+.changelog-panel__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-bg);
+  cursor: pointer;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--color-text-secondary);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.changelog-panel__close:hover {
+  background: var(--color-bg-secondary);
+  color: var(--color-text);
+}
+
+.changelog-panel__close:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* ---- Content ---- */
+.changelog-panel__content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-4) var(--space-6);
+}
+
+/* ================================================================== */
+/*  3. LOADING STATE                                                   */
+/* ================================================================== */
+
+.changelog-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8) 0;
+  gap: var(--space-4);
+  color: var(--color-text-secondary);
+}
+
+.changelog-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: changelog-spin 0.8s linear infinite;
+}
+
+@keyframes changelog-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ================================================================== */
+/*  4. ERROR STATE                                                     */
+/* ================================================================== */
+
+.changelog-error {
+  padding: var(--space-4);
+  border: 1px solid var(--color-error);
+  border-radius: 6px;
+  background: #fef2f2;
+  text-align: center;
+}
+
+.changelog-error__message {
+  color: var(--color-error);
+  font-weight: 600;
+  margin-bottom: var(--space-3);
+}
+
+.changelog-error__retry {
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-error);
+  border-radius: 6px;
+  background: var(--color-bg);
+  color: var(--color-error);
+  cursor: pointer;
+  font-size: var(--font-size-sm, 0.875rem);
+  min-height: 44px;
+  transition: background 0.15s ease;
+}
+
+.changelog-error__retry:hover {
+  background: #fef2f2;
+}
+
+/* ================================================================== */
+/*  5. EMPTY STATE                                                     */
+/* ================================================================== */
+
+.changelog-empty {
+  text-align: center;
+  padding: var(--space-8) 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-base, 1rem);
+}
+
+/* ================================================================== */
+/*  6. TIMELINE                                                        */
+/* ================================================================== */
+
+.changelog-timeline {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  position: relative;
+}
+
+/* Vertical timeline line */
+.changelog-timeline::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 11px;
+  width: 2px;
+  background: var(--color-border);
+}
+
+/* ================================================================== */
+/*  7. TIMELINE ENTRY                                                  */
+/* ================================================================== */
+
+.changelog-entry {
+  display: flex;
+  gap: var(--space-4);
+  padding-bottom: var(--space-6);
+  position: relative;
+}
+
+.changelog-entry:last-child {
+  padding-bottom: 0;
+}
+
+/* Timeline marker dot */
+.changelog-entry__marker {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 3px solid var(--color-border);
+  background: var(--color-bg);
+  flex-shrink: 0;
+  z-index: 1;
+  margin-top: 2px;
+}
+
+/* Color by change type */
+.changelog-entry--created .changelog-entry__marker {
+  border-color: var(--color-primary);
+  background: #eff6ff;
+}
+
+.changelog-entry--updated .changelog-entry__marker {
+  border-color: var(--color-warning);
+  background: #fffbeb;
+}
+
+.changelog-entry--published .changelog-entry__marker {
+  border-color: var(--color-success);
+  background: #f0fdf4;
+}
+
+.changelog-entry--deprecated .changelog-entry__marker {
+  border-color: var(--color-error);
+  background: #fef2f2;
+}
+
+/* Entry content */
+.changelog-entry__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.changelog-entry__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-1);
+}
+
+.changelog-entry__version {
+  font-weight: 700;
+  font-size: var(--font-size-base, 1rem);
+  color: var(--color-text);
+}
+
+/* Change type badge */
+.badge-change {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.badge-change--created {
+  background: #eff6ff;
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary);
+}
+
+.badge-change--updated {
+  background: #fffbeb;
+  color: var(--color-warning);
+  border: 1px solid var(--color-warning);
+}
+
+.badge-change--published {
+  background: #f0fdf4;
+  color: var(--color-success);
+  border: 1px solid var(--color-success);
+}
+
+.badge-change--deprecated {
+  background: #fef2f2;
+  color: var(--color-error);
+  border: 1px solid var(--color-error);
+}
+
+/* Legal impact badge */
+.badge-impact {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.4;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.badge-impact--none {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
+
+.badge-impact--low {
+  background: #eff6ff;
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary);
+}
+
+.badge-impact--medium {
+  background: #fffbeb;
+  color: var(--color-warning);
+  border: 1px solid var(--color-warning);
+}
+
+.badge-impact--high {
+  background: #fef2f2;
+  color: var(--color-error);
+  border: 1px solid var(--color-error);
+}
+
+/* Date */
+.changelog-entry__date {
+  display: block;
+  font-size: var(--font-size-sm, 0.875rem);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-1);
+}
+
+/* Author */
+.changelog-entry__author {
+  font-size: var(--font-size-sm, 0.875rem);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+/* Summary */
+.changelog-entry__summary {
+  font-size: var(--font-size-sm, 0.875rem);
+  color: var(--color-text);
+  line-height: 1.5;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg-secondary);
+  border-radius: 4px;
+  border-left: 3px solid var(--color-border);
+}
+
+.changelog-entry--created .changelog-entry__summary {
+  border-left-color: var(--color-primary);
+}
+
+.changelog-entry--updated .changelog-entry__summary {
+  border-left-color: var(--color-warning);
+}
+
+.changelog-entry--published .changelog-entry__summary {
+  border-left-color: var(--color-success);
+}
+
+.changelog-entry--deprecated .changelog-entry__summary {
+  border-left-color: var(--color-error);
+}
+
+/* ================================================================== */
+/*  8. RESPONSIVE                                                      */
+/* ================================================================== */
+
+@media (max-width: 768px) {
+  .changelog-panel {
+    width: 100vw;
+  }
+
+  .changelog-panel__header {
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .changelog-panel__content {
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .changelog-entry__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .changelog-panel__title {
+    font-size: var(--font-size-lg, 1.125rem);
+  }
+
+  .changelog-entry {
+    gap: var(--space-3);
+  }
+}
+
+/* ================================================================== */
+/*  9. PRINT                                                           */
+/* ================================================================== */
+
+@media print {
+  .changelog-backdrop,
+  .changelog-panel {
+    display: none !important;
+  }
+}

@@ -1,16 +1,21 @@
 /**
- * Identity API Routes — Sprint 5+8 (Team 02)
+ * Identity API Routes — Sprint 5+8+9 (Team 02)
  *
  * Endpoints:
  * - GET    /users           — List users in tenant
  * - GET    /users/:id       — Get single user
- * - POST   /users/invite    — Invite user (admin only)
- * - PATCH  /users/:id       — Update user (admin only)
- * - POST   /users/:id/activate   — Activate invited user (admin only)
- * - POST   /users/:id/deactivate — Deactivate user (admin only)
- * - DELETE /users/:id       — Delete user (admin only)
+ * - POST   /users/invite    — Invite user (admin only) + Keycloak sync
+ * - PATCH  /users/:id       — Update user (admin only) + Keycloak role sync
+ * - POST   /users/:id/activate   — Activate invited user (admin only) + Keycloak sync
+ * - POST   /users/:id/deactivate — Deactivate user (admin only) + Keycloak sync
+ * - DELETE /users/:id       — Delete user (admin only) + Keycloak sync
  * - GET    /audit-logs      — Query audit events (admin only)
  * - GET    /me              — Current user info
+ *
+ * Sprint 9 additions:
+ * - Keycloak Admin API integration: all write operations are synchronised
+ *   to Keycloak via the KeycloakAdminService. Keycloak calls are fire-and-forget
+ *   (wrapped in try/catch) so they never block the primary DB operation.
  */
 
 import { Router } from 'express';
@@ -19,6 +24,8 @@ import { prisma, setTenantContext } from '../../shared/db';
 import { getTenantContext } from '../../middleware/tenant-context';
 import { requireRole } from '../../middleware/auth';
 import { auditService } from '../../services/audit.service';
+import { keycloakAdmin } from '../../services/keycloak-admin';
+import { logger } from '../../shared/logger';
 import { NotFoundError, AppError } from '../../middleware/error-handler';
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '@servanda/shared';
 
@@ -139,11 +146,29 @@ identityRouter.post('/users/invite', requireRole('admin'), async (req, res, next
       });
     });
 
+    // --- Keycloak sync (fire-and-forget, never blocks main operation) ---
+    let keycloakUserId: string | null = null;
+    try {
+      keycloakUserId = await keycloakAdmin.createUser(input.email, input.displayName);
+      if (keycloakUserId) {
+        await keycloakAdmin.assignRealmRole(keycloakUserId, input.role);
+        logger.info(
+          { userId: user.id, keycloakUserId, role: input.role },
+          'Keycloak user created and role assigned on invite',
+        );
+      }
+    } catch (kcErr) {
+      logger.error(
+        { err: kcErr, userId: user.id, email: input.email },
+        'Keycloak sync failed during user invite (non-blocking)',
+      );
+    }
+
     await auditService.log(ctx, {
       action: 'user.invite',
       objectType: 'user',
       objectId: user.id,
-      details: { email: input.email, role: input.role },
+      details: { email: input.email, role: input.role, keycloakUserId },
     }, { ip: req.ip, userAgent: req.headers['user-agent'] });
 
     res.status(201).json({
@@ -188,6 +213,22 @@ identityRouter.patch('/users/:id', requireRole('admin'), async (req, res, next) 
       });
     });
 
+    // --- Keycloak sync: role change (fire-and-forget) ---
+    if (input.role !== undefined && user.keycloakId) {
+      try {
+        await keycloakAdmin.assignRealmRole(user.keycloakId, input.role);
+        logger.info(
+          { userId: user.id, keycloakId: user.keycloakId, newRole: input.role },
+          'Keycloak realm role updated on user patch',
+        );
+      } catch (kcErr) {
+        logger.error(
+          { err: kcErr, userId: user.id, role: input.role },
+          'Keycloak role sync failed during user update (non-blocking)',
+        );
+      }
+    }
+
     await auditService.log(ctx, {
       action: 'user.update',
       objectType: 'user',
@@ -223,10 +264,27 @@ identityRouter.post('/users/:id/activate', requireRole('admin'), async (req, res
       });
     });
 
+    // --- Keycloak sync: enable user (fire-and-forget) ---
+    if (user.keycloakId) {
+      try {
+        await keycloakAdmin.enableUser(user.keycloakId);
+        logger.info(
+          { userId: user.id, keycloakId: user.keycloakId },
+          'Keycloak user enabled on activate',
+        );
+      } catch (kcErr) {
+        logger.error(
+          { err: kcErr, userId: user.id },
+          'Keycloak enable failed during user activate (non-blocking)',
+        );
+      }
+    }
+
     await auditService.log(ctx, {
       action: 'user.activate',
       objectType: 'user',
       objectId: user.id,
+      details: { keycloakSynced: !!user.keycloakId },
     }, { ip: req.ip, userAgent: req.headers['user-agent'] });
 
     res.json(formatUser(user));
@@ -260,10 +318,27 @@ identityRouter.post('/users/:id/deactivate', requireRole('admin'), async (req, r
       });
     });
 
+    // --- Keycloak sync: disable user (fire-and-forget) ---
+    if (user.keycloakId) {
+      try {
+        await keycloakAdmin.disableUser(user.keycloakId);
+        logger.info(
+          { userId: user.id, keycloakId: user.keycloakId },
+          'Keycloak user disabled on deactivate',
+        );
+      } catch (kcErr) {
+        logger.error(
+          { err: kcErr, userId: user.id },
+          'Keycloak disable failed during user deactivate (non-blocking)',
+        );
+      }
+    }
+
     await auditService.log(ctx, {
       action: 'user.deactivate',
       objectType: 'user',
       objectId: user.id,
+      details: { keycloakSynced: !!user.keycloakId },
     }, { ip: req.ip, userAgent: req.headers['user-agent'] });
 
     res.json(formatUser(user));
@@ -277,6 +352,9 @@ identityRouter.delete('/users/:id', requireRole('admin'), async (req, res, next)
   try {
     const ctx = getTenantContext(req);
 
+    // Fetch user before deletion to get keycloakId
+    let keycloakId: string | null = null;
+
     await prisma.$transaction(async (tx) => {
       await setTenantContext(tx, ctx.tenantId);
 
@@ -288,13 +366,32 @@ identityRouter.delete('/users/:id', requireRole('admin'), async (req, res, next)
         throw new AppError(400, 'Cannot delete yourself', 'BAD_REQUEST');
       }
 
+      keycloakId = existing.keycloakId ?? null;
+
       await tx.user.delete({ where: { id: req.params.id } });
     });
+
+    // --- Keycloak sync: delete user (fire-and-forget) ---
+    if (keycloakId) {
+      try {
+        await keycloakAdmin.deleteUser(keycloakId);
+        logger.info(
+          { userId: req.params.id, keycloakId },
+          'Keycloak user deleted on user deletion',
+        );
+      } catch (kcErr) {
+        logger.error(
+          { err: kcErr, userId: req.params.id, keycloakId },
+          'Keycloak delete failed during user deletion (non-blocking)',
+        );
+      }
+    }
 
     await auditService.log(ctx, {
       action: 'user.delete',
       objectType: 'user',
       objectId: req.params.id!,
+      details: { keycloakSynced: !!keycloakId },
     }, { ip: req.ip, userAgent: req.headers['user-agent'] });
 
     res.status(204).send();
@@ -337,6 +434,7 @@ function formatUser(u: {
   id: string; email: string; displayName: string;
   role: string; status: string; mfaEnabled: boolean;
   lastLoginAt: Date | null; createdAt: Date;
+  keycloakId?: string | null;
 }) {
   return {
     id: u.id,

@@ -17,6 +17,9 @@ resources:
   - network-policy-api.yaml
   - network-policy-worker.yaml
   - network-policy-web.yaml
+  - backup-cronjob.yaml
+  - backup-configmap.yaml
+  - keycloak-backup-cronjob.yaml
 
 commonLabels:
   app.kubernetes.io/part-of: servanda-office

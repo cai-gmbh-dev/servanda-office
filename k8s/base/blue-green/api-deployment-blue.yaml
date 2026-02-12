@@ -1,0 +1,112 @@
+# =============================================================================
+# Blue API Deployment — Blue/Green Strategy
+# Team 07 — DevOps & On-Prem | Sprint 12
+#
+# The "blue" deployment is the initial active deployment.
+# Traffic is routed here via the api-service selector.
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: servanda-api-blue
+  namespace: servanda-office
+  labels:
+    app: servanda
+    component: api
+    app.kubernetes.io/name: servanda-api
+    app.kubernetes.io/version: blue
+    app.kubernetes.io/part-of: servanda-office
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    deployment.kubernetes.io/revision: "1"
+    servanda.de/deployment-strategy: blue-green
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: servanda
+      component: api
+      app.kubernetes.io/version: blue
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: servanda
+        component: api
+        app.kubernetes.io/name: servanda-api
+        app.kubernetes.io/version: blue
+        app.kubernetes.io/part-of: servanda-office
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: servanda-api
+          image: ghcr.io/cai-gmbh-dev/servanda-office/api:latest
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: servanda-config
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: servanda-db-credentials
+                  key: url
+            - name: S3_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: servanda-s3-credentials
+                  key: S3_ENDPOINT
+            - name: S3_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: servanda-s3-credentials
+                  key: S3_ACCESS_KEY
+            - name: S3_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: servanda-s3-credentials
+                  key: S3_SECRET_KEY
+            - name: OIDC_ISSUER_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: servanda-config
+                  key: OIDC_ISSUER_URL
+            - name: DEPLOYMENT_COLOR
+              value: "blue"
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 2
+          startupProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 12

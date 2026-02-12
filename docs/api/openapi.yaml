@@ -1,0 +1,3007 @@
+openapi: 3.0.3
+info:
+  title: Servanda Office API
+  version: 1.0.0
+  description: |
+    Multi-Tenant LegalTech Platform API for contract creation and management.
+
+    **Core Flow:** Template selection -> Guided Q&A Interview -> Conflict-free Contract -> DOCX/ODT Export.
+
+    **Architecture Decisions:**
+    - ADR-001: Shared DB with PostgreSQL Row-Level Security for tenant isolation
+    - ADR-002: Immutable versioning for Clauses/Templates; ContractInstance pins versions
+    - ADR-003: Async export via pgboss job queue with S3 storage
+    - ADR-004: Server-side ODT conversion via LibreOffice headless
+
+    **Authentication:**
+    - Production: Bearer JWT (OIDC/SAML)
+    - Development: Header-based tenant context (x-tenant-id, x-user-id, x-user-role)
+
+    **Pagination:** All list endpoints support `page` and `pageSize` query parameters.
+    Default page size: 20, maximum: 100.
+
+    **Status Workflow (Clause/Template Versions):**
+    `draft` -> `review` -> `approved` -> `published` -> `deprecated`
+    (review -> draft and approved -> draft are also valid transitions)
+  contact:
+    name: Team 01 - Product Architecture
+  license:
+    name: Proprietary
+
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Local development server (v1 canonical prefix)
+  - url: http://localhost:3000/api
+    description: Legacy route prefix (backward-compatible)
+
+security:
+  - BearerAuth: []
+  - DevHeaders: []
+
+tags:
+  - name: Health
+    description: Health check endpoints (no authentication required)
+  - name: Identity
+    description: User management, audit logs, and current user info
+  - name: Content
+    description: Clause and Template CRUD with immutable versioning (ADR-002)
+  - name: Changelog
+    description: Changelog entries for clause versions tracking changes between versions
+  - name: Reviewer
+    description: Review workflow with four-eyes principle for clause/template versions
+  - name: Contract
+    description: Contract instance lifecycle with version pinning (ADR-002)
+  - name: Export
+    description: Export job lifecycle - create, queue, process, download (ADR-003)
+  - name: Branding
+    description: Kanzlei-Branding style templates for document export appearance
+  - name: DLQ
+    description: Dead-letter queue monitoring and management for failed export jobs
+
+# ===========================================================================
+# PATHS
+# ===========================================================================
+paths:
+
+  # =========================================================================
+  # HEALTH
+  # =========================================================================
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check
+      description: Returns API health status including database connectivity. No authentication required.
+      operationId: getHealth
+      security: []
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+                  version:
+                    type: string
+                    example: '1.0.0'
+                  timestamp:
+                    type: string
+                    format: date-time
+        '503':
+          description: API is unhealthy (e.g. database unreachable)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [unhealthy]
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  # =========================================================================
+  # IDENTITY - Users
+  # =========================================================================
+  /identity/me:
+    get:
+      tags: [Identity]
+      summary: Get current user info
+      description: Returns the currently authenticated user's profile.
+      operationId: getCurrentUser
+      responses:
+        '200':
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /identity/users:
+    get:
+      tags: [Identity]
+      summary: List users in tenant
+      description: Returns a paginated list of all users belonging to the current tenant.
+      operationId: listUsers
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+      responses:
+        '200':
+          description: Paginated list of users
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /identity/users/invite:
+    post:
+      tags: [Identity]
+      summary: Invite a new user
+      description: |
+        Creates a new user with status `invited`. Admin role required.
+        Email must be unique within the tenant.
+      operationId: inviteUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InviteUserRequest'
+      responses:
+        '201':
+          description: User invited successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: User with this email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /identity/users/{id}:
+    get:
+      tags: [Identity]
+      summary: Get a single user
+      description: Returns a user by ID within the current tenant.
+      operationId: getUser
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: User details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Identity]
+      summary: Update a user
+      description: Updates user role and/or display name. Admin role required.
+      operationId: updateUser
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Identity]
+      summary: Delete a user
+      description: |
+        Permanently deletes a user. Admin role required.
+        Cannot delete yourself.
+      operationId: deleteUser
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '204':
+          description: User deleted successfully
+        '400':
+          description: Cannot delete yourself
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /identity/users/{id}/activate:
+    post:
+      tags: [Identity]
+      summary: Activate a user
+      description: |
+        Transitions user status to `active`. Admin role required.
+        Fails if user is already active.
+      operationId: activateUser
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: User activated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: User is already active
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /identity/users/{id}/deactivate:
+    post:
+      tags: [Identity]
+      summary: Deactivate a user
+      description: |
+        Transitions user status to `inactive`. Admin role required.
+        Cannot deactivate yourself. Fails if user is already inactive.
+      operationId: deactivateUser
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: User deactivated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Cannot deactivate yourself
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: User is already inactive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  # =========================================================================
+  # IDENTITY - Audit Logs
+  # =========================================================================
+  /identity/audit-logs:
+    get:
+      tags: [Identity]
+      summary: Query audit logs
+      description: |
+        Returns paginated audit events for the current tenant. Admin role required.
+        Supports filtering by action, object type, object ID, and time range.
+      operationId: queryAuditLogs
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: action
+          in: query
+          description: Filter by audit action (e.g. `clause.create`, `user.invite`)
+          schema:
+            type: string
+        - name: objectType
+          in: query
+          description: Filter by object type (e.g. `clause`, `user`, `export_job`)
+          schema:
+            type: string
+        - name: objectId
+          in: query
+          description: Filter by specific object ID
+          schema:
+            type: string
+            format: uuid
+        - name: from
+          in: query
+          description: Filter events from this timestamp (ISO 8601)
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          description: Filter events until this timestamp (ISO 8601)
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Paginated audit log entries
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/AuditEvent'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # =========================================================================
+  # CONTENT - Clauses
+  # =========================================================================
+  /content/clauses:
+    post:
+      tags: [Content]
+      summary: Create a clause
+      description: |
+        Creates a new clause entity. Requires `admin` or `editor` role.
+        The clause is created without any versions; add versions separately.
+      operationId: createClause
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateClauseRequest'
+      responses:
+        '201':
+          description: Clause created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Clause'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    get:
+      tags: [Content]
+      summary: List clauses
+      description: Returns a paginated list of all clauses in the current tenant.
+      operationId: listClauses
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+      responses:
+        '200':
+          description: Paginated list of clauses
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Clause'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /content/clauses/{id}:
+    get:
+      tags: [Content]
+      summary: Get clause with versions
+      description: Returns a single clause by ID including all its versions ordered by version number descending.
+      operationId: getClause
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Clause with versions
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Clause'
+                  - type: object
+                    properties:
+                      versions:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ClauseVersion'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /content/clauses/{id}/versions:
+    post:
+      tags: [Content]
+      summary: Create a new clause version
+      description: |
+        Creates a new immutable version of a clause (ADR-002).
+        Version number is auto-incremented. Initial status is `draft`.
+        Optionally includes conflict/dependency rules for clause consistency validation.
+      operationId: createClauseVersion
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateClauseVersionRequest'
+      responses:
+        '201':
+          description: Clause version created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClauseVersion'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /content/clauses/{id}/versions/{vid}/status:
+    patch:
+      tags: [Content]
+      summary: Transition clause version status
+      description: |
+        Transitions the status of a clause version following the workflow:
+        `draft` -> `review` -> `approved` -> `published` -> `deprecated`.
+        Also allows `review` -> `draft` and `approved` -> `draft`.
+
+        When transitioning to `published`, publishing gates are validated automatically.
+        If gates fail, the transition is rejected with a 409 Conflict.
+      operationId: transitionClauseVersionStatus
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+        - $ref: '#/components/parameters/VersionIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatusTransitionRequest'
+      responses:
+        '200':
+          description: Status transitioned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClauseVersion'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Invalid status transition or publishing gates failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /content/clauses/{id}/versions/{vid}/publishing-gates:
+    get:
+      tags: [Content]
+      summary: Check clause version publishing gates
+      description: |
+        Pre-flight check that validates all publishing gates for a clause version
+        without actually transitioning the status. Returns gate results with
+        pass/fail status and severity.
+      operationId: checkClausePublishingGates
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+        - $ref: '#/components/parameters/VersionIdParam'
+      responses:
+        '200':
+          description: Publishing gate validation results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublishingGateResult'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /content/clauses/batch-content:
+    post:
+      tags: [Content]
+      summary: Batch-fetch clause version content
+      description: |
+        Fetches content for multiple clause versions in a single request.
+        Used by the Live-Preview-Panel in the Contract Builder UI.
+        Minimum 1, maximum 50 clause version IDs per request.
+      operationId: batchClauseContent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchClauseContentRequest'
+      responses:
+        '200':
+          description: Batch clause version content
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ClauseVersionContent'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # =========================================================================
+  # CONTENT - Templates
+  # =========================================================================
+  /content/templates:
+    post:
+      tags: [Content]
+      summary: Create a template
+      description: |
+        Creates a new template entity. Requires `admin` or `editor` role.
+        The template is created without versions; add versions separately.
+      operationId: createTemplate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTemplateRequest'
+      responses:
+        '201':
+          description: Template created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Template'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    get:
+      tags: [Content]
+      summary: List templates
+      description: Returns a paginated list of all templates in the current tenant.
+      operationId: listTemplates
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+      responses:
+        '200':
+          description: Paginated list of templates
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Template'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /content/templates/{id}:
+    get:
+      tags: [Content]
+      summary: Get template with versions
+      description: Returns a single template by ID including all its versions ordered by version number descending.
+      operationId: getTemplate
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Template with versions
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Template'
+                  - type: object
+                    properties:
+                      versions:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/TemplateVersion'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /content/templates/{id}/versions:
+    post:
+      tags: [Content]
+      summary: Create a new template version
+      description: |
+        Creates a new immutable version of a template (ADR-002).
+        Version number is auto-incremented. Initial status is `draft`.
+        The structure defines sections with clause slots.
+      operationId: createTemplateVersion
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTemplateVersionRequest'
+      responses:
+        '201':
+          description: Template version created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateVersion'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /content/templates/{id}/versions/{vid}/status:
+    patch:
+      tags: [Content]
+      summary: Transition template version status
+      description: |
+        Transitions the status of a template version following the same workflow as clauses.
+        Publishing gates are validated before allowing transition to `published`.
+      operationId: transitionTemplateVersionStatus
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+        - $ref: '#/components/parameters/VersionIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatusTransitionRequest'
+      responses:
+        '200':
+          description: Status transitioned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateVersion'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Invalid status transition or publishing gates failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /content/templates/{id}/versions/{vid}/publishing-gates:
+    get:
+      tags: [Content]
+      summary: Check template version publishing gates
+      description: Pre-flight check for template version publishing gates.
+      operationId: checkTemplatePublishingGates
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+        - $ref: '#/components/parameters/VersionIdParam'
+      responses:
+        '200':
+          description: Publishing gate validation results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublishingGateResult'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # =========================================================================
+  # CONTENT - Catalog (Published Templates)
+  # =========================================================================
+  /content/catalog/templates:
+    get:
+      tags: [Content]
+      summary: Published template catalog
+      description: |
+        Returns published templates from vendor tenants.
+        Cross-tenant read enabled via RLS for published content.
+        Each entry includes the latest published template version.
+      operationId: listCatalogTemplates
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+      responses:
+        '200':
+          description: Paginated published template catalog
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          allOf:
+                            - $ref: '#/components/schemas/Template'
+                            - type: object
+                              properties:
+                                latestVersion:
+                                  nullable: true
+                                  allOf:
+                                    - $ref: '#/components/schemas/TemplateVersion'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # =========================================================================
+  # CHANGELOG
+  # =========================================================================
+  /content/clauses/{id}/versions/{vid}/changelog:
+    post:
+      tags: [Changelog]
+      summary: Add changelog entry
+      description: |
+        Adds a changelog entry to a clause version tracking what changed.
+        Requires `admin` or `editor` role.
+        Changelog entries record change type, legal impact, and optional migration notes.
+      operationId: addClauseVersionChangelog
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+        - $ref: '#/components/parameters/VersionIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateChangelogRequest'
+      responses:
+        '201':
+          description: Changelog entry added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangelogEntry'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      tags: [Changelog]
+      summary: Get changelog entries for a clause version
+      description: Returns all changelog entries for a specific clause version.
+      operationId: getClauseVersionChangelog
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+        - $ref: '#/components/parameters/VersionIdParam'
+      responses:
+        '200':
+          description: Changelog entries for the version
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  versionId:
+                    type: string
+                    format: uuid
+                  versionNumber:
+                    type: integer
+                  entries:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ChangelogEntry'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /content/clauses/{id}/changelog:
+    get:
+      tags: [Changelog]
+      summary: Get full clause changelog across all versions
+      description: Returns all changelog entries across all versions of a clause, ordered by version number descending.
+      operationId: getClauseChangelog
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Full clause changelog
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  clauseId:
+                    type: string
+                    format: uuid
+                  entries:
+                    type: array
+                    items:
+                      allOf:
+                        - $ref: '#/components/schemas/ChangelogEntry'
+                        - type: object
+                          properties:
+                            versionId:
+                              type: string
+                              format: uuid
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # =========================================================================
+  # REVIEWER - Clause Versions
+  # =========================================================================
+  /content/clauses/{id}/versions/{vid}/assign-reviewer:
+    post:
+      tags: [Reviewer]
+      summary: Assign reviewer to clause version
+      description: |
+        Assigns a reviewer to a clause version. Requires `admin` or `editor` role.
+        Four-eyes principle: reviewer must differ from the author.
+        Version must be in `draft` or `review` status.
+      operationId: assignClauseVersionReviewer
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+        - $ref: '#/components/parameters/VersionIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignReviewerRequest'
+      responses:
+        '200':
+          description: Reviewer assigned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewerActionResponse'
+        '400':
+          description: Four-eyes principle violation (reviewer equals author)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Cannot assign reviewer in current status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /content/clauses/{id}/versions/{vid}/approve:
+    post:
+      tags: [Reviewer]
+      summary: Approve clause version
+      description: |
+        Approves a clause version. Requires `admin` or `editor` role.
+        Four-eyes principle: author cannot approve their own version.
+        Version must be in `review` status.
+      operationId: approveClauseVersion
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+        - $ref: '#/components/parameters/VersionIdParam'
+      responses:
+        '200':
+          description: Version approved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewerActionResponse'
+        '400':
+          description: Author cannot approve own version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Version is not in review status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /content/clauses/{id}/versions/{vid}/reject:
+    post:
+      tags: [Reviewer]
+      summary: Reject clause version
+      description: |
+        Rejects a clause version, returning it to `draft` status.
+        Requires `admin` or `editor` role. Version must be in `review` status.
+        A comment explaining the rejection is required.
+      operationId: rejectClauseVersion
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+        - $ref: '#/components/parameters/VersionIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RejectRequest'
+      responses:
+        '200':
+          description: Version rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewerActionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Version is not in review status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /content/clauses/{id}/versions/{vid}/request-changes:
+    post:
+      tags: [Reviewer]
+      summary: Request changes on clause version
+      description: |
+        Requests changes on a clause version, returning it to `draft` status with a comment.
+        Requires `admin` or `editor` role. Version must be in `review` status.
+        Optionally specifies affected sections for targeted revision.
+      operationId: requestChangesClauseVersion
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+        - $ref: '#/components/parameters/VersionIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestChangesRequest'
+      responses:
+        '200':
+          description: Changes requested
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewerActionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Version is not in review status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /content/clauses/{id}/versions/{vid}/reviews:
+    get:
+      tags: [Reviewer]
+      summary: Get review history for clause version
+      description: Returns the review history including all review actions for a clause version.
+      operationId: getClauseVersionReviews
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+        - $ref: '#/components/parameters/VersionIdParam'
+      responses:
+        '200':
+          description: Review history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewHistory'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # =========================================================================
+  # REVIEWER - Template Versions
+  # =========================================================================
+  /content/templates/{id}/versions/{vid}/assign-reviewer:
+    post:
+      tags: [Reviewer]
+      summary: Assign reviewer to template version
+      description: |
+        Assigns a reviewer to a template version. Same rules as clause version review.
+        Four-eyes principle enforced.
+      operationId: assignTemplateVersionReviewer
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+        - $ref: '#/components/parameters/VersionIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignReviewerRequest'
+      responses:
+        '200':
+          description: Reviewer assigned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewerActionResponse'
+        '400':
+          description: Four-eyes principle violation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Cannot assign reviewer in current status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /content/templates/{id}/versions/{vid}/approve:
+    post:
+      tags: [Reviewer]
+      summary: Approve template version
+      description: |
+        Approves a template version. Four-eyes principle enforced.
+        Version must be in `review` status.
+      operationId: approveTemplateVersion
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+        - $ref: '#/components/parameters/VersionIdParam'
+      responses:
+        '200':
+          description: Version approved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewerActionResponse'
+        '400':
+          description: Author cannot approve own version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Version is not in review status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /content/templates/{id}/versions/{vid}/reject:
+    post:
+      tags: [Reviewer]
+      summary: Reject template version
+      description: |
+        Rejects a template version, returning it to `draft` status.
+        Version must be in `review` status. Comment required.
+      operationId: rejectTemplateVersion
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+        - $ref: '#/components/parameters/VersionIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RejectRequest'
+      responses:
+        '200':
+          description: Version rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewerActionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Version is not in review status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /content/templates/{id}/versions/{vid}/request-changes:
+    post:
+      tags: [Reviewer]
+      summary: Request changes on template version
+      description: |
+        Requests changes on a template version, returning it to `draft` status.
+        Version must be in `review` status.
+      operationId: requestChangesTemplateVersion
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+        - $ref: '#/components/parameters/VersionIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestChangesRequest'
+      responses:
+        '200':
+          description: Changes requested
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewerActionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Version is not in review status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /content/templates/{id}/versions/{vid}/reviews:
+    get:
+      tags: [Reviewer]
+      summary: Get review history for template version
+      description: Returns the review history for a template version.
+      operationId: getTemplateVersionReviews
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+        - $ref: '#/components/parameters/VersionIdParam'
+      responses:
+        '200':
+          description: Review history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewHistory'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # =========================================================================
+  # CONTRACT
+  # =========================================================================
+  /contracts:
+    post:
+      tags: [Contract]
+      summary: Create contract instance
+      description: |
+        Creates a new contract instance from a published template version (ADR-002).
+        Automatically resolves and pins the current published clause versions
+        from the template structure. Initial status is `draft`.
+      operationId: createContract
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateContractRequest'
+      responses:
+        '201':
+          description: Contract instance created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContractInstance'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Template version not found or not published
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+    get:
+      tags: [Contract]
+      summary: List contracts
+      description: Returns a paginated list of contract instances for the current tenant. Optionally filter by status.
+      operationId: listContracts
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+        - name: status
+          in: query
+          description: Filter by contract status
+          schema:
+            type: string
+            enum: [draft, completed, archived]
+      responses:
+        '200':
+          description: Paginated list of contracts
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ContractInstance'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /contracts/{id}:
+    get:
+      tags: [Contract]
+      summary: Get contract detail
+      description: Returns a single contract instance by ID.
+      operationId: getContract
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Contract details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContractInstance'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Contract]
+      summary: Update contract (auto-save)
+      description: |
+        Updates answers, selected slots, title, client reference, or tags of a draft contract.
+        Answers and selectedSlots are merged with existing values (partial update).
+        Only draft contracts can be updated; completed contracts are immutable.
+      operationId: updateContract
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateContractRequest'
+      responses:
+        '200':
+          description: Contract updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContractInstance'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Cannot update a completed contract
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /contracts/{id}/complete:
+    post:
+      tags: [Contract]
+      summary: Complete contract
+      description: |
+        Completes a contract instance, making its pinned versions immutable (ADR-002).
+        Sets status to `completed` with a completion timestamp.
+        Fails if contract has unresolved hard conflicts.
+      operationId: completeContract
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Contract completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContractInstance'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Contract already completed or has unresolved conflicts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /contracts/{id}/validate:
+    post:
+      tags: [Contract]
+      summary: Validate contract rules
+      description: |
+        Validates all clause rules against the current contract state.
+        Checks `requires`, `forbids`, `incompatible_with`, and `requires_answer` rules.
+        Updates the contract's `validationState` accordingly.
+      operationId: validateContract
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationResult'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # =========================================================================
+  # EXPORT
+  # =========================================================================
+  /export-jobs:
+    post:
+      tags: [Export]
+      summary: Create export job
+      description: |
+        Creates a new export job and enqueues it via pgboss (ADR-003).
+        Supports DOCX (always available) and ODT (feature-flagged via FEATURE_ODT_EXPORT).
+        Optionally references a style template for branding.
+      operationId: createExportJob
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateExportJobRequest'
+      responses:
+        '201':
+          description: Export job created and queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportJob'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Contract instance not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: ODT export not enabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /export-jobs/{id}:
+    get:
+      tags: [Export]
+      summary: Get export job status
+      description: Returns the current status and details of an export job.
+      operationId: getExportJob
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Export job details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportJob'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /export-jobs/{id}/download:
+    get:
+      tags: [Export]
+      summary: Download exported document
+      description: |
+        Redirects to the pre-signed download URL for a completed export.
+        Only available when the export job status is `done`.
+      operationId: downloadExport
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '302':
+          description: Redirect to download URL
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Export not yet complete or has failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  # =========================================================================
+  # DLQ (Dead-Letter Queue)
+  # =========================================================================
+  /export-jobs/failed:
+    get:
+      tags: [DLQ]
+      summary: List failed export jobs
+      description: Returns a paginated list of failed export jobs for the current tenant.
+      operationId: listFailedExportJobs
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+      responses:
+        '200':
+          description: Paginated list of failed jobs
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/FailedExportJob'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /export-jobs/stats:
+    get:
+      tags: [DLQ]
+      summary: DLQ statistics overview
+      description: |
+        Returns aggregate statistics about failed and archived export jobs,
+        including counts by format and age of oldest failure.
+      operationId: getDlqStats
+      responses:
+        '200':
+          description: DLQ statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DlqStats'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /export-jobs/{id}/retry:
+    post:
+      tags: [DLQ]
+      summary: Retry a failed export job
+      description: |
+        Re-queues a failed export job for processing. Admin role required.
+        Only jobs with status `failed` can be retried.
+        Increments the retry counter.
+      operationId: retryFailedExportJob
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Job re-queued for retry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FailedExportJob'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Job is not in failed status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /export-jobs/{id}/archive:
+    post:
+      tags: [DLQ]
+      summary: Archive a failed export job
+      description: |
+        Archives a failed export job, removing it from the active failure list.
+        Admin role required. Only jobs with status `failed` can be archived.
+      operationId: archiveFailedExportJob
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Job archived
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FailedExportJob'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Job is not in failed status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  # =========================================================================
+  # BRANDING - Style Templates
+  # =========================================================================
+  /export/style-templates:
+    post:
+      tags: [Branding]
+      summary: Create a style template
+      description: |
+        Creates a new style template for document export branding.
+        Controls fonts, colors, margins, logo, and footer text.
+        Admin role required.
+      operationId: createStyleTemplate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateStyleTemplateRequest'
+      responses:
+        '201':
+          description: Style template created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StyleTemplate'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    get:
+      tags: [Branding]
+      summary: List style templates
+      description: Returns a paginated list of style templates for the current tenant.
+      operationId: listStyleTemplates
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+      responses:
+        '200':
+          description: Paginated list of style templates
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/StyleTemplate'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /export/style-templates/{id}:
+    get:
+      tags: [Branding]
+      summary: Get a style template
+      description: Returns a single style template by ID.
+      operationId: getStyleTemplate
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Style template details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StyleTemplate'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Branding]
+      summary: Update a style template
+      description: Partially updates a style template. Admin role required. All fields are optional.
+      operationId: updateStyleTemplate
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateStyleTemplateRequest'
+      responses:
+        '200':
+          description: Style template updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StyleTemplate'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Branding]
+      summary: Delete a style template
+      description: |
+        Deletes a style template. Admin role required.
+        Cannot delete if referenced by any export job.
+      operationId: deleteStyleTemplate
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '204':
+          description: Style template deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Style template is referenced by export jobs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+# ===========================================================================
+# COMPONENTS
+# ===========================================================================
+components:
+
+  # =========================================================================
+  # Security Schemes
+  # =========================================================================
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Production authentication via OIDC/SAML JWT token.
+        Include tenant claim in the JWT payload.
+    DevHeaders:
+      type: apiKey
+      in: header
+      name: x-tenant-id
+      description: |
+        Development-mode authentication via headers.
+        Requires all three headers:
+        - `x-tenant-id` (UUID) - Tenant identifier
+        - `x-user-id` (UUID) - User identifier
+        - `x-user-role` (admin|editor|user) - User role
+
+  # =========================================================================
+  # Parameters
+  # =========================================================================
+  parameters:
+    IdParam:
+      name: id
+      in: path
+      required: true
+      description: Resource UUID
+      schema:
+        type: string
+        format: uuid
+    VersionIdParam:
+      name: vid
+      in: path
+      required: true
+      description: Version UUID
+      schema:
+        type: string
+        format: uuid
+    PageParam:
+      name: page
+      in: query
+      description: Page number (1-based, default 1)
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSizeParam:
+      name: pageSize
+      in: query
+      description: Number of items per page (default 20, max 100)
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+  # =========================================================================
+  # Reusable Responses
+  # =========================================================================
+  responses:
+    BadRequest:
+      description: Invalid request body or parameters (Zod validation failed)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    Unauthorized:
+      description: Missing or invalid authentication
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    Forbidden:
+      description: Insufficient permissions (role check failed)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+
+  # =========================================================================
+  # Schemas
+  # =========================================================================
+  schemas:
+
+    # --- Common ---
+    ApiError:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: Machine-readable error code
+          example: NOT_FOUND
+        message:
+          type: string
+          description: Human-readable error message
+          example: Resource not found
+        details:
+          type: object
+          additionalProperties: true
+          description: Additional error context
+
+    PaginatedResponse:
+      type: object
+      required: [data, total, page, pageSize, hasMore]
+      properties:
+        data:
+          type: array
+          items: {}
+        total:
+          type: integer
+          description: Total number of items across all pages
+          example: 42
+        page:
+          type: integer
+          description: Current page number
+          example: 1
+        pageSize:
+          type: integer
+          description: Items per page
+          example: 20
+        hasMore:
+          type: boolean
+          description: Whether more pages exist
+          example: true
+
+    # --- Identity ---
+    User:
+      type: object
+      required: [id, email, displayName, role, status, mfaEnabled, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+        role:
+          type: string
+          enum: [admin, editor, user]
+        status:
+          type: string
+          enum: [invited, active, inactive]
+        mfaEnabled:
+          type: boolean
+        lastLoginAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    InviteUserRequest:
+      type: object
+      required: [email, displayName, role]
+      properties:
+        email:
+          type: string
+          format: email
+          description: Must be unique within the tenant
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 255
+        role:
+          type: string
+          enum: [admin, editor, user]
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [admin, editor, user]
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 255
+
+    AuditEvent:
+      type: object
+      required: [id, tenantId, userId, action, objectType, objectId, timestamp]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        action:
+          type: string
+          description: Audit action identifier
+          example: clause.create
+        objectType:
+          type: string
+          description: Type of the affected object
+          example: clause
+        objectId:
+          type: string
+          format: uuid
+        details:
+          type: object
+          additionalProperties: true
+        ip:
+          type: string
+          nullable: true
+        userAgent:
+          type: string
+          nullable: true
+        timestamp:
+          type: string
+          format: date-time
+
+    # --- Content: Clauses ---
+    Clause:
+      type: object
+      required: [id, tenantId, title, tags, jurisdiction, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        jurisdiction:
+          type: string
+          description: Jurisdiction code (e.g. DE, AT, CH)
+        legalArea:
+          type: string
+          nullable: true
+        currentPublishedVersionId:
+          type: string
+          format: uuid
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateClauseRequest:
+      type: object
+      required: [title, jurisdiction]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 500
+        jurisdiction:
+          type: string
+          minLength: 2
+          maxLength: 10
+          description: Jurisdiction code (e.g. DE, AT, CH)
+        legalArea:
+          type: string
+          maxLength: 100
+        tags:
+          type: array
+          items:
+            type: string
+
+    ClauseVersion:
+      type: object
+      required: [id, clauseId, versionNumber, content, status, authorId, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        clauseId:
+          type: string
+          format: uuid
+        versionNumber:
+          type: integer
+          minimum: 1
+        content:
+          type: string
+          description: The clause text content (may contain template placeholders)
+        parameters:
+          type: object
+          additionalProperties: true
+          nullable: true
+          description: Key-value parameter definitions for template placeholders
+        rules:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClauseRule'
+          description: Conflict/dependency rules for clause consistency validation
+        status:
+          type: string
+          enum: [draft, review, approved, published, deprecated]
+        authorId:
+          type: string
+          format: uuid
+        reviewerId:
+          type: string
+          format: uuid
+          nullable: true
+        publishedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateClauseVersionRequest:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+          minLength: 1
+          description: The clause text content
+        parameters:
+          type: object
+          additionalProperties: true
+          description: Parameter definitions for template placeholders
+        rules:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClauseRule'
+          description: Conflict/dependency rules
+        validFrom:
+          type: string
+          format: date-time
+          description: Optional validity start date
+        validUntil:
+          type: string
+          format: date-time
+          description: Optional validity end date
+
+    ClauseRule:
+      type: object
+      required: [type, severity, message]
+      properties:
+        type:
+          type: string
+          enum: [requires, forbids, incompatible_with, scoped_to, requires_answer]
+          description: |
+            Rule type:
+            - `requires`: Target clause must be present
+            - `forbids`: Target clause must not be present
+            - `incompatible_with`: Target clause is incompatible
+            - `scoped_to`: Clause only applies in specific scope
+            - `requires_answer`: A specific interview question must be answered
+        targetClauseId:
+          type: string
+          format: uuid
+          description: Target clause for requires/forbids/incompatible_with rules
+        questionKey:
+          type: string
+          description: Interview question key for requires_answer rules
+        expectedAnswer:
+          description: Expected answer value for requires_answer rules
+        severity:
+          type: string
+          enum: [hard, soft]
+          description: |
+            - `hard`: Blocks contract completion
+            - `soft`: Warning only
+        message:
+          type: string
+          description: Human-readable message explaining the rule
+
+    ClauseVersionContent:
+      type: object
+      required: [id, clauseId, versionNumber, content]
+      properties:
+        id:
+          type: string
+          format: uuid
+        clauseId:
+          type: string
+          format: uuid
+        versionNumber:
+          type: integer
+        content:
+          type: string
+        parameters:
+          type: object
+          additionalProperties: true
+          nullable: true
+
+    BatchClauseContentRequest:
+      type: object
+      required: [clauseVersionIds]
+      properties:
+        clauseVersionIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          minItems: 1
+          maxItems: 50
+          description: List of clause version IDs to fetch content for
+
+    StatusTransitionRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [draft, review, approved, published, deprecated]
+          description: Target status to transition to
+        reviewerId:
+          type: string
+          format: uuid
+          description: Optional reviewer ID (auto-set to current user on publish if not provided)
+
+    PublishingGateResult:
+      type: object
+      required: [canPublish, gates]
+      properties:
+        canPublish:
+          type: boolean
+          description: Whether all required gates pass
+        gates:
+          type: array
+          items:
+            type: object
+            required: [gate, passed, severity]
+            properties:
+              gate:
+                type: string
+                description: Gate identifier (e.g. PG-C01, PG-T04)
+              passed:
+                type: boolean
+              severity:
+                type: string
+                enum: [error, warning]
+              message:
+                type: string
+                description: Explanation if gate failed
+
+    # --- Content: Templates ---
+    Template:
+      type: object
+      required: [id, tenantId, title, tags, jurisdiction, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        category:
+          type: string
+          nullable: true
+        jurisdiction:
+          type: string
+        legalArea:
+          type: string
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+        currentPublishedVersionId:
+          type: string
+          format: uuid
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateTemplateRequest:
+      type: object
+      required: [title, jurisdiction]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 500
+        description:
+          type: string
+        category:
+          type: string
+          maxLength: 100
+        jurisdiction:
+          type: string
+          minLength: 2
+          maxLength: 10
+        legalArea:
+          type: string
+          maxLength: 100
+        tags:
+          type: array
+          items:
+            type: string
+
+    TemplateVersion:
+      type: object
+      required: [id, templateId, versionNumber, structure, status, authorId, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        templateId:
+          type: string
+          format: uuid
+        versionNumber:
+          type: integer
+          minimum: 1
+        structure:
+          type: array
+          items:
+            $ref: '#/components/schemas/TemplateSection'
+          description: Template structure defining sections and clause slots
+        interviewFlowId:
+          type: string
+          format: uuid
+          nullable: true
+        defaultStyleTemplateId:
+          type: string
+          format: uuid
+          nullable: true
+        status:
+          type: string
+          enum: [draft, review, approved, published, deprecated]
+        authorId:
+          type: string
+          format: uuid
+        reviewerId:
+          type: string
+          format: uuid
+          nullable: true
+        publishedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateTemplateVersionRequest:
+      type: object
+      required: [structure]
+      properties:
+        structure:
+          type: array
+          items:
+            $ref: '#/components/schemas/TemplateSection'
+          description: Template structure with sections and clause slots
+        interviewFlowId:
+          type: string
+          format: uuid
+          description: Optional reference to an interview flow
+        defaultStyleTemplateId:
+          type: string
+          format: uuid
+          description: Optional default style template for exports
+
+    TemplateSection:
+      type: object
+      required: [title, slots]
+      properties:
+        title:
+          type: string
+          description: Section title
+        slots:
+          type: array
+          items:
+            $ref: '#/components/schemas/TemplateSlot'
+          description: Clause slots within this section
+
+    TemplateSlot:
+      type: object
+      required: [clauseId, type]
+      properties:
+        clauseId:
+          type: string
+          format: uuid
+          description: Reference to the clause entity
+        type:
+          type: string
+          enum: [required, optional, alternative]
+          description: |
+            - `required`: Clause must be included
+            - `optional`: Clause can be omitted
+            - `alternative`: One of the alternatives must be chosen
+        alternativeClauseIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Alternative clause IDs (only for type `alternative`)
+
+    # --- Changelog ---
+    ChangelogEntry:
+      type: object
+      required: [id, versionNumber, changeType, legalImpact, summary, authorId, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        versionNumber:
+          type: integer
+        changeType:
+          type: string
+          enum: [content, legal, editorial, structure]
+          description: |
+            - `content`: Textual content change
+            - `legal`: Legal meaning changed
+            - `editorial`: Formatting/wording only
+            - `structure`: Structural reorganization
+        legalImpact:
+          type: string
+          enum: [breaking, minor, none]
+          description: |
+            - `breaking`: Contracts using previous version need migration
+            - `minor`: Minor legal impact
+            - `none`: No legal impact
+        summary:
+          type: string
+          description: Human-readable change summary
+        migrationNotes:
+          type: string
+          nullable: true
+          description: Guidance for contracts using previous versions
+        affectedSections:
+          type: array
+          items:
+            type: string
+          description: List of affected section identifiers
+        authorId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateChangelogRequest:
+      type: object
+      required: [changeType, legalImpact, summary]
+      properties:
+        changeType:
+          type: string
+          enum: [content, legal, editorial, structure]
+        legalImpact:
+          type: string
+          enum: [breaking, minor, none]
+        summary:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        migrationNotes:
+          type: string
+          maxLength: 5000
+        affectedSections:
+          type: array
+          items:
+            type: string
+
+    # --- Reviewer ---
+    AssignReviewerRequest:
+      type: object
+      required: [reviewerId]
+      properties:
+        reviewerId:
+          type: string
+          format: uuid
+          description: User ID of the reviewer (must differ from author)
+
+    RejectRequest:
+      type: object
+      required: [comment]
+      properties:
+        comment:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: Reason for rejection
+
+    RequestChangesRequest:
+      type: object
+      required: [comment]
+      properties:
+        comment:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: Description of requested changes
+        affectedSections:
+          type: array
+          items:
+            type: string
+          description: Sections that need revision
+
+    ReviewerActionResponse:
+      type: object
+      required: [message, versionId]
+      properties:
+        message:
+          type: string
+          description: Action confirmation message
+        versionId:
+          type: string
+          format: uuid
+        reviewerId:
+          type: string
+          format: uuid
+          description: Only present for assign-reviewer action
+        status:
+          type: string
+          enum: [draft, review, approved, published, deprecated]
+          description: Only present for approve/reject/request-changes actions
+
+    ReviewHistory:
+      type: object
+      required: [versionId, status, authorId]
+      properties:
+        versionId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [draft, review, approved, published, deprecated]
+        authorId:
+          type: string
+          format: uuid
+        reviewerId:
+          type: string
+          format: uuid
+          nullable: true
+        assignedReviewerId:
+          type: string
+          format: uuid
+          nullable: true
+        history:
+          type: array
+          items:
+            type: object
+            properties:
+              action:
+                type: string
+                enum: [approved, rejected, changes_requested]
+              reviewerId:
+                type: string
+                format: uuid
+              comment:
+                type: string
+              affectedSections:
+                type: array
+                items:
+                  type: string
+              timestamp:
+                type: string
+                format: date-time
+
+    # --- Contract ---
+    ContractInstance:
+      type: object
+      required: [id, tenantId, creatorId, title, tags, templateVersionId, clauseVersionIds, answers, selectedSlots, validationState, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        creatorId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        clientReference:
+          type: string
+          nullable: true
+          description: External reference number (e.g. case file number)
+        tags:
+          type: array
+          items:
+            type: string
+        templateVersionId:
+          type: string
+          format: uuid
+          description: Pinned template version (ADR-002)
+        clauseVersionIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Pinned clause version IDs (ADR-002)
+        answers:
+          type: object
+          additionalProperties: true
+          description: Interview answers keyed by question key
+        selectedSlots:
+          type: object
+          additionalProperties:
+            type: string
+          description: Selected clause alternatives keyed by slot ID
+        validationState:
+          type: string
+          enum: [valid, has_warnings, has_conflicts]
+        validationMessages:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/ValidationMessage'
+        status:
+          type: string
+          enum: [draft, completed, archived]
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateContractRequest:
+      type: object
+      required: [title, templateVersionId]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 500
+        templateVersionId:
+          type: string
+          format: uuid
+          description: Must reference a published template version
+        clientReference:
+          type: string
+          maxLength: 255
+          description: Optional external reference number
+        tags:
+          type: array
+          items:
+            type: string
+
+    UpdateContractRequest:
+      type: object
+      description: All fields are optional. Answers and selectedSlots are merged with existing values.
+      properties:
+        answers:
+          type: object
+          additionalProperties: true
+          description: Interview answers to merge with existing
+        selectedSlots:
+          type: object
+          additionalProperties:
+            type: string
+          description: Slot selections to merge with existing
+        title:
+          type: string
+          minLength: 1
+          maxLength: 500
+        clientReference:
+          type: string
+          maxLength: 255
+        tags:
+          type: array
+          items:
+            type: string
+
+    ValidationResult:
+      type: object
+      required: [validationState, messages]
+      properties:
+        validationState:
+          type: string
+          enum: [valid, has_warnings, has_conflicts]
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationMessage'
+
+    ValidationMessage:
+      type: object
+      required: [ruleId, clauseId, severity, message]
+      properties:
+        ruleId:
+          type: string
+          description: Composite rule identifier (clauseVersionId:type:target)
+        clauseId:
+          type: string
+          format: uuid
+        severity:
+          type: string
+          enum: [hard, soft]
+        message:
+          type: string
+
+    # --- Export ---
+    ExportJob:
+      type: object
+      required: [id, tenantId, contractInstanceId, requestedBy, format, status, queuedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        contractInstanceId:
+          type: string
+          format: uuid
+        requestedBy:
+          type: string
+          format: uuid
+        format:
+          type: string
+          enum: [docx, odt]
+        status:
+          type: string
+          enum: [queued, running, done, failed, archived]
+        resultStoragePath:
+          type: string
+          nullable: true
+          description: S3 storage path of the generated document
+        errorMessage:
+          type: string
+          nullable: true
+          description: Error message if the job failed
+        queuedAt:
+          type: string
+          format: date-time
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    CreateExportJobRequest:
+      type: object
+      required: [contractInstanceId, format]
+      properties:
+        contractInstanceId:
+          type: string
+          format: uuid
+          description: Contract instance to export
+        format:
+          type: string
+          enum: [docx, odt]
+          description: |
+            Export format:
+            - `docx`: Always available
+            - `odt`: Requires FEATURE_ODT_EXPORT=true
+        styleTemplateId:
+          type: string
+          format: uuid
+          description: Optional style template for branding
+
+    FailedExportJob:
+      type: object
+      required: [id, tenantId, contractInstanceId, requestedBy, format, status, retryCount, queuedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        contractInstanceId:
+          type: string
+          format: uuid
+        requestedBy:
+          type: string
+          format: uuid
+        format:
+          type: string
+          enum: [docx, odt]
+        status:
+          type: string
+          enum: [failed, queued, archived]
+        errorMessage:
+          type: string
+          nullable: true
+        retryCount:
+          type: integer
+          minimum: 0
+        queuedAt:
+          type: string
+          format: date-time
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    DlqStats:
+      type: object
+      required: [totalFailed, totalArchived, failedLast24h, failedByFormat]
+      properties:
+        totalFailed:
+          type: integer
+          description: Total number of currently failed jobs
+        totalArchived:
+          type: integer
+          description: Total number of archived failed jobs
+        oldestFailed:
+          type: string
+          format: date-time
+          nullable: true
+          description: Timestamp of the oldest failed job
+        failedLast24h:
+          type: integer
+          description: Number of jobs that failed in the last 24 hours
+        failedByFormat:
+          type: object
+          required: [docx, odt]
+          properties:
+            docx:
+              type: integer
+            odt:
+              type: integer
+
+    # --- Branding ---
+    StyleTemplate:
+      type: object
+      required: [id, tenantId, name, primaryFont, fontSize, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        logoUrl:
+          type: string
+          format: uri
+          nullable: true
+        primaryFont:
+          type: string
+          description: Primary body font
+          example: Arial
+        fontSize:
+          type: integer
+          description: Body font size in points
+          example: 11
+        headerFont:
+          type: string
+          nullable: true
+          description: Optional header font (falls back to primaryFont)
+        headerFontSize:
+          type: integer
+          nullable: true
+          description: Optional header font size
+        primaryColor:
+          type: string
+          pattern: '^#[0-9a-fA-F]{6}$'
+          nullable: true
+          description: Primary brand color (hex)
+          example: '#1a365d'
+        secondaryColor:
+          type: string
+          pattern: '^#[0-9a-fA-F]{6}$'
+          nullable: true
+          description: Secondary brand color (hex)
+        footerText:
+          type: string
+          nullable: true
+          description: Custom footer text for exported documents
+        pageMargins:
+          $ref: '#/components/schemas/PageMargins'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateStyleTemplateRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 1000
+        logoUrl:
+          type: string
+          format: uri
+          maxLength: 2048
+        primaryFont:
+          type: string
+          maxLength: 100
+          default: Arial
+        fontSize:
+          type: integer
+          minimum: 6
+          maximum: 72
+          default: 11
+        headerFont:
+          type: string
+          maxLength: 100
+        headerFontSize:
+          type: integer
+          minimum: 6
+          maximum: 72
+        primaryColor:
+          type: string
+          pattern: '^#[0-9a-fA-F]{6}$'
+        secondaryColor:
+          type: string
+          pattern: '^#[0-9a-fA-F]{6}$'
+        footerText:
+          type: string
+          maxLength: 500
+        pageMargins:
+          $ref: '#/components/schemas/PageMargins'
+
+    UpdateStyleTemplateRequest:
+      type: object
+      description: All fields are optional (partial update).
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 1000
+        logoUrl:
+          type: string
+          format: uri
+          maxLength: 2048
+        primaryFont:
+          type: string
+          maxLength: 100
+        fontSize:
+          type: integer
+          minimum: 6
+          maximum: 72
+        headerFont:
+          type: string
+          maxLength: 100
+        headerFontSize:
+          type: integer
+          minimum: 6
+          maximum: 72
+        primaryColor:
+          type: string
+          pattern: '^#[0-9a-fA-F]{6}$'
+        secondaryColor:
+          type: string
+          pattern: '^#[0-9a-fA-F]{6}$'
+        footerText:
+          type: string
+          maxLength: 500
+        pageMargins:
+          $ref: '#/components/schemas/PageMargins'
+
+    PageMargins:
+      type: object
+      nullable: true
+      description: Page margins in mm
+      properties:
+        top:
+          type: number
+          minimum: 0
+          maximum: 100
+        right:
+          type: number
+          minimum: 0
+          maximum: 100
+        bottom:
+          type: number
+          minimum: 0
+          maximum: 100
+        left:
+          type: number
+          minimum: 0
+          maximum: 100

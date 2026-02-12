@@ -1,0 +1,1097 @@
+/**
+ * Responsive Styles — Sprint 11 (Team 04)
+ *
+ * Media queries for Tablet (<=1024px) and Mobile (<=768px).
+ * Covers: InterviewPage, ReviewPage, CatalogPage, Layout.
+ * Touch targets: min 44x44px (WCAG 2.5.5).
+ * Typography: clamp()-based responsive font sizes.
+ */
+
+/* ================================================================== */
+/*  1. BASE RESPONSIVE UTILITIES                                       */
+/* ================================================================== */
+
+/* Responsive typography via clamp() */
+:root {
+  --font-size-sm-resp: clamp(0.8125rem, 0.75rem + 0.25vw, 0.875rem);
+  --font-size-base-resp: clamp(0.9375rem, 0.875rem + 0.25vw, 1rem);
+  --font-size-lg-resp: clamp(1rem, 0.9375rem + 0.25vw, 1.125rem);
+  --font-size-xl-resp: clamp(1.125rem, 1rem + 0.5vw, 1.25rem);
+  --font-size-2xl-resp: clamp(1.25rem, 1.125rem + 0.5vw, 1.5rem);
+  --font-size-3xl-resp: clamp(1.5rem, 1.25rem + 0.75vw, 1.875rem);
+}
+
+/* Container constraint */
+.app-container {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 var(--space-4);
+}
+
+/* Screen-reader only (utility) */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Touch-target base — ensures all interactive elements meet 44x44px */
+button,
+a,
+select,
+input[type="checkbox"],
+input[type="radio"],
+[role="button"],
+[role="tab"],
+[role="menuitem"] {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Hamburger toggle (hidden on desktop) */
+.sidebar-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-bg);
+  cursor: pointer;
+  z-index: 1010;
+}
+
+.sidebar-toggle__icon {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: var(--color-text);
+  position: relative;
+}
+
+.sidebar-toggle__icon::before,
+.sidebar-toggle__icon::after {
+  content: '';
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: var(--color-text);
+  position: absolute;
+  left: 0;
+}
+
+.sidebar-toggle__icon::before {
+  top: -7px;
+}
+
+.sidebar-toggle__icon::after {
+  top: 7px;
+}
+
+/* Preview toggle (hidden on desktop) */
+.preview-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-bg-secondary);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  min-height: 44px;
+}
+
+/* Filter slide-over overlay (hidden on desktop) */
+.filter-overlay {
+  display: none;
+}
+
+.filter-slide-over {
+  display: none;
+}
+
+/* ================================================================== */
+/*  2. DESKTOP DEFAULTS (>1024px) — reinforce layout contracts         */
+/* ================================================================== */
+
+/* Interview layout: three columns */
+.interview-layout {
+  display: grid;
+  grid-template-columns: 250px 1fr 350px;
+  gap: var(--space-4);
+  min-height: calc(100vh - var(--header-height));
+}
+
+.interview-sidebar {
+  padding: var(--space-4);
+  border-right: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+  overflow-y: auto;
+  max-height: calc(100vh - var(--header-height));
+  position: sticky;
+  top: var(--header-height);
+}
+
+.interview-sidebar h2 {
+  font-size: var(--font-size-lg-resp);
+  margin-bottom: var(--space-3);
+}
+
+.interview-sidebar nav ol {
+  list-style: none;
+  padding: 0;
+}
+
+.interview-sidebar nav ol li button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: var(--font-size-sm-resp);
+  color: var(--color-text-secondary);
+  min-height: 44px;
+}
+
+.interview-sidebar nav ol li button.active,
+.interview-sidebar nav ol li button[aria-current="step"] {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.interview-main {
+  padding: var(--space-6);
+  overflow-y: auto;
+}
+
+.interview-main h1 {
+  font-size: var(--font-size-2xl-resp);
+  margin-bottom: var(--space-4);
+}
+
+.interview-actions {
+  display: flex;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+  flex-wrap: wrap;
+}
+
+.interview-actions button {
+  padding: var(--space-3) var(--space-6);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-bg);
+  cursor: pointer;
+  font-size: var(--font-size-base-resp);
+  min-height: 44px;
+}
+
+.interview-actions button.primary {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+}
+
+.interview-actions button.primary:hover {
+  background: var(--color-primary-hover);
+}
+
+.interview-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Progress bar */
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: var(--color-border);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: var(--space-2);
+}
+
+.progress-bar__fill {
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+/* Live preview (desktop: third column) */
+.live-preview {
+  padding: var(--space-4);
+  border-left: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+  overflow-y: auto;
+  max-height: calc(100vh - var(--header-height));
+  position: sticky;
+  top: var(--header-height);
+}
+
+.live-preview h2 {
+  font-size: var(--font-size-lg-resp);
+  margin-bottom: var(--space-3);
+}
+
+/* Keyboard hints */
+.keyboard-hints {
+  margin-top: var(--space-4);
+  font-size: var(--font-size-sm-resp);
+  color: var(--color-text-secondary);
+}
+
+.keyboard-hints kbd {
+  display: inline-block;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  background: var(--color-bg-secondary);
+  font-family: monospace;
+  font-size: 0.8em;
+}
+
+/* Conditional hint */
+.conditional-hint {
+  font-size: var(--font-size-sm-resp);
+  color: var(--color-text-secondary);
+  font-style: italic;
+  margin-top: var(--space-2);
+}
+
+/* Save indicator */
+.save-indicator {
+  font-size: var(--font-size-sm-resp);
+  color: var(--color-text-secondary);
+  margin-top: var(--space-2);
+}
+
+.save-indicator--done {
+  color: var(--color-success);
+}
+
+/* Help text */
+.help-text {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm-resp);
+  margin-bottom: var(--space-3);
+}
+
+/* Validation panel */
+.validation-panel {
+  margin-top: var(--space-6);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-bg-secondary);
+}
+
+.validation-msg--hard {
+  color: var(--color-error);
+}
+
+.validation-msg--soft {
+  color: var(--color-warning);
+}
+
+/* ================================================================== */
+/*  3. REVIEW PAGE STYLES                                              */
+/* ================================================================== */
+
+.review-page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: var(--space-6);
+}
+
+.review-page h1 {
+  font-size: var(--font-size-2xl-resp);
+  margin-bottom: var(--space-6);
+}
+
+.review-page h2 {
+  font-size: var(--font-size-xl-resp);
+  margin-bottom: var(--space-3);
+}
+
+/* Desktop: two-column content + sidebar */
+.review-page {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: var(--space-6);
+}
+
+.review-page > h1 {
+  grid-column: 1 / -1;
+}
+
+.review-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  position: sticky;
+  top: calc(var(--header-height) + var(--space-6));
+  align-self: start;
+  grid-column: 2;
+  grid-row: 2 / span 5;
+  padding: var(--space-4);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.review-actions button {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-bg);
+  cursor: pointer;
+  font-size: var(--font-size-base-resp);
+  min-height: 44px;
+}
+
+.review-actions button.primary {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+}
+
+.review-actions button.primary:hover {
+  background: var(--color-primary-hover);
+}
+
+.review-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.review-meta,
+.review-validation,
+.review-answers,
+.review-clauses,
+.review-completed {
+  grid-column: 1;
+}
+
+.review-meta dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-2) var(--space-4);
+}
+
+.review-meta dt {
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.review-validation {
+  padding: var(--space-4);
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+}
+
+.review-validation--valid {
+  border-color: var(--color-success);
+  background: #f0fdf4;
+}
+
+.review-validation--warnings {
+  border-color: var(--color-warning);
+  background: #fffbeb;
+}
+
+.review-validation--conflicts {
+  border-color: var(--color-error);
+  background: #fef2f2;
+}
+
+.review-answers__list {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.review-answers__item {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.review-answers__item dt {
+  font-weight: 600;
+  font-size: var(--font-size-sm-resp);
+  color: var(--color-text-secondary);
+}
+
+.review-clauses__list {
+  list-style: none;
+  padding: 0;
+}
+
+.review-clause {
+  padding: var(--space-4);
+  margin-bottom: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-bg-secondary);
+}
+
+.review-clause h3 {
+  font-size: var(--font-size-base-resp);
+  margin-bottom: var(--space-2);
+}
+
+.review-clause__content {
+  white-space: pre-wrap;
+  font-size: var(--font-size-sm-resp);
+  line-height: 1.6;
+}
+
+.review-conflict-hint {
+  grid-column: 1 / -1;
+  color: var(--color-error);
+  font-size: var(--font-size-sm-resp);
+  margin-top: var(--space-2);
+}
+
+/* Error utility */
+.error {
+  color: var(--color-error);
+  font-weight: 600;
+}
+
+/* ================================================================== */
+/*  4. CATALOG PAGE STYLES                                             */
+/* ================================================================== */
+
+.catalog-page {
+  padding: var(--space-6);
+}
+
+.catalog-page h1 {
+  font-size: var(--font-size-2xl-resp);
+  margin-bottom: var(--space-2);
+}
+
+/* Filter bar */
+.filter-bar {
+  margin: var(--space-4) 0;
+}
+
+.filter-row {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.filter-row input[type="search"] {
+  flex: 1;
+  min-width: 200px;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: var(--font-size-base-resp);
+  min-height: 44px;
+}
+
+.filter-row select {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-bg);
+  font-size: var(--font-size-base-resp);
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.btn-clear {
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  font-size: var(--font-size-sm-resp);
+  color: var(--color-text-secondary);
+  min-height: 44px;
+}
+
+.btn-clear:hover {
+  background: var(--color-bg-secondary);
+}
+
+.filter-count {
+  margin-top: var(--space-2);
+  font-size: var(--font-size-sm-resp);
+  color: var(--color-text-secondary);
+}
+
+/* Template grid */
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+
+.template-card {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg);
+  transition: box-shadow 0.2s ease;
+}
+
+.template-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.template-card h2 {
+  font-size: var(--font-size-lg-resp);
+  margin-bottom: var(--space-2);
+}
+
+.template-card p {
+  font-size: var(--font-size-sm-resp);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-3);
+  flex: 1;
+}
+
+.template-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.badge {
+  display: inline-block;
+  padding: var(--space-1) var(--space-2);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
+
+.badge--area {
+  background: #eff6ff;
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.badge--tag {
+  background: #f0fdf4;
+  color: var(--color-success);
+  border-color: var(--color-success);
+}
+
+.template-card button {
+  margin-top: auto;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-primary);
+  border-radius: 6px;
+  background: var(--color-primary);
+  color: #fff;
+  cursor: pointer;
+  font-size: var(--font-size-base-resp);
+  min-height: 44px;
+  transition: background 0.15s ease;
+}
+
+.template-card button:hover {
+  background: var(--color-primary-hover);
+}
+
+.template-card button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Historie button in catalog cards */
+.template-card__actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.template-card__actions button {
+  flex: 1;
+}
+
+.btn-changelog {
+  background: var(--color-bg) !important;
+  color: var(--color-text) !important;
+  border-color: var(--color-border) !important;
+}
+
+.btn-changelog:hover {
+  background: var(--color-bg-secondary) !important;
+}
+
+/* ================================================================== */
+/*  5. LAYOUT — SIDEBAR NAVIGATION                                     */
+/* ================================================================== */
+
+/* Re-declare layout for responsive overrides */
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.app-nav {
+  width: var(--sidebar-width);
+  border-right: 1px solid var(--color-border);
+  padding: var(--space-4);
+  background: var(--color-bg-secondary);
+  flex-shrink: 0;
+}
+
+.app-nav__brand {
+  font-weight: 700;
+  font-size: var(--font-size-lg-resp);
+  margin-bottom: var(--space-6);
+}
+
+.app-nav ul {
+  list-style: none;
+}
+
+.app-nav ul li a {
+  display: block;
+  padding: var(--space-2) var(--space-3);
+  border-radius: 4px;
+  text-decoration: none;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-base-resp);
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+.app-nav ul li a.active,
+.app-nav ul li a[aria-current="page"] {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.app-main {
+  flex: 1;
+  padding: var(--space-6);
+  overflow-x: hidden;
+}
+
+/* Mobile sidebar backdrop */
+.sidebar-backdrop {
+  display: none;
+}
+
+/* ================================================================== */
+/*  6. TABLET BREAKPOINT (<=1024px)                                    */
+/* ================================================================== */
+
+@media (max-width: 1024px) {
+  /* --- Layout: collapse sidebar to hamburger --- */
+  .sidebar-toggle {
+    display: flex;
+  }
+
+  .app-nav {
+    position: fixed;
+    top: 0;
+    left: -300px;
+    width: 280px;
+    height: 100vh;
+    z-index: 1020;
+    transition: left 0.3s ease;
+    overflow-y: auto;
+    box-shadow: none;
+  }
+
+  .app-nav.app-nav--open {
+    left: 0;
+    box-shadow: 4px 0 16px rgba(0, 0, 0, 0.1);
+  }
+
+  .sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 1015;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+
+  .sidebar-backdrop--visible {
+    display: block;
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .app-main {
+    padding: var(--space-4);
+  }
+
+  /* --- Interview: two columns, stacked main + preview --- */
+  .interview-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr auto;
+  }
+
+  .interview-sidebar {
+    position: fixed;
+    top: 0;
+    left: -300px;
+    width: 280px;
+    height: 100vh;
+    z-index: 1020;
+    transition: left 0.3s ease;
+    border-right: 1px solid var(--color-border);
+    max-height: 100vh;
+  }
+
+  .interview-sidebar.interview-sidebar--open {
+    left: 0;
+    box-shadow: 4px 0 16px rgba(0, 0, 0, 0.1);
+  }
+
+  .interview-main {
+    padding: var(--space-4);
+  }
+
+  .live-preview {
+    border-left: none;
+    border-top: 1px solid var(--color-border);
+    position: static;
+    max-height: none;
+  }
+
+  /* --- Review: single column, actions at bottom --- */
+  .review-page {
+    grid-template-columns: 1fr;
+    padding: var(--space-4);
+  }
+
+  .review-actions {
+    position: static;
+    grid-column: 1;
+    grid-row: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .review-actions button {
+    flex: 1;
+    min-width: 150px;
+  }
+
+  .review-meta,
+  .review-validation,
+  .review-answers,
+  .review-clauses,
+  .review-completed {
+    grid-column: 1;
+  }
+
+  /* --- Catalog: 2-column grid --- */
+  .template-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ================================================================== */
+/*  7. MOBILE BREAKPOINT (<=768px)                                     */
+/* ================================================================== */
+
+@media (max-width: 768px) {
+  /* --- Layout --- */
+  .app-main {
+    padding: var(--space-3);
+  }
+
+  /* --- Interview: single column --- */
+  .interview-layout {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  /* Sidebar hidden — horizontal progress replaces it */
+  .interview-sidebar {
+    display: none;
+  }
+
+  .interview-sidebar.interview-sidebar--open {
+    display: block;
+  }
+
+  /* Mobile progress bar (horizontal, always visible) */
+  .mobile-progress {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    background: var(--color-bg-secondary);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .mobile-progress__bar {
+    flex: 1;
+    height: 6px;
+    background: var(--color-border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .mobile-progress__fill {
+    height: 100%;
+    background: var(--color-primary);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+  }
+
+  .mobile-progress__text {
+    font-size: var(--font-size-sm-resp);
+    color: var(--color-text-secondary);
+    white-space: nowrap;
+  }
+
+  .interview-main {
+    padding: var(--space-3);
+  }
+
+  .interview-main h1 {
+    font-size: var(--font-size-xl-resp);
+  }
+
+  /* Preview as toggle panel at the bottom */
+  .preview-toggle {
+    display: flex;
+  }
+
+  .live-preview {
+    border-left: none;
+    border-top: 1px solid var(--color-border);
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    max-height: 50vh;
+    z-index: 1005;
+    transform: translateY(100%);
+    transition: transform 0.3s ease;
+    overflow-y: auto;
+    background: var(--color-bg);
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.1);
+  }
+
+  .live-preview.live-preview--open {
+    transform: translateY(0);
+  }
+
+  /* Keyboard hints hidden on touch devices */
+  .keyboard-hints {
+    display: none;
+  }
+
+  .interview-actions {
+    flex-direction: column;
+  }
+
+  .interview-actions button {
+    width: 100%;
+  }
+
+  /* --- Review: single column, sticky footer actions --- */
+  .review-page {
+    grid-template-columns: 1fr;
+    padding: var(--space-3);
+    padding-bottom: calc(80px + var(--space-4));
+  }
+
+  .review-page h1 {
+    font-size: var(--font-size-xl-resp);
+  }
+
+  .review-actions {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1005;
+    flex-direction: row;
+    padding: var(--space-3) var(--space-4);
+    background: var(--color-bg);
+    border-top: 1px solid var(--color-border);
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.06);
+    border-radius: 0;
+  }
+
+  .review-actions button {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .review-answers__item {
+    grid-template-columns: 1fr;
+  }
+
+  .review-meta dl {
+    grid-template-columns: 1fr;
+  }
+
+  /* --- Catalog: single column --- */
+  .template-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Filter as slide-over */
+  .filter-bar {
+    position: relative;
+  }
+
+  .filter-row {
+    display: none;
+  }
+
+  .filter-bar.filter-bar--mobile-open .filter-row {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: min(85vw, 360px);
+    height: 100vh;
+    z-index: 1020;
+    background: var(--color-bg);
+    padding: var(--space-6) var(--space-4);
+    box-shadow: -4px 0 16px rgba(0, 0, 0, 0.1);
+    overflow-y: auto;
+  }
+
+  .filter-bar.filter-bar--mobile-open .filter-row input[type="search"],
+  .filter-bar.filter-bar--mobile-open .filter-row select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .filter-toggle-mobile {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-bg-secondary);
+    color: var(--color-text);
+    font-size: var(--font-size-base-resp);
+    cursor: pointer;
+    min-height: 44px;
+    width: 100%;
+  }
+
+  .filter-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 1015;
+  }
+
+  .filter-bar.filter-bar--mobile-open .filter-overlay {
+    display: block;
+  }
+
+  /* Template card adjustments */
+  .template-card {
+    padding: var(--space-3);
+  }
+
+  .template-card__actions {
+    flex-direction: column;
+  }
+
+  .template-card__actions button {
+    width: 100%;
+  }
+}
+
+/* ================================================================== */
+/*  8. EXTRA SMALL (<=480px)                                           */
+/* ================================================================== */
+
+@media (max-width: 480px) {
+  .interview-main h1 {
+    font-size: var(--font-size-lg-resp);
+  }
+
+  .review-page h1 {
+    font-size: var(--font-size-lg-resp);
+  }
+
+  .review-actions {
+    flex-direction: column;
+  }
+
+  .template-card h2 {
+    font-size: var(--font-size-base-resp);
+  }
+
+  .badge {
+    font-size: 0.6875rem;
+  }
+}
+
+/* ================================================================== */
+/*  9. PRINT STYLES                                                    */
+/* ================================================================== */
+
+@media print {
+  .sidebar-toggle,
+  .preview-toggle,
+  .filter-toggle-mobile,
+  .interview-sidebar,
+  .app-nav,
+  .review-actions,
+  .interview-actions,
+  .keyboard-hints {
+    display: none !important;
+  }
+
+  .interview-layout {
+    grid-template-columns: 1fr !important;
+  }
+
+  .review-page {
+    grid-template-columns: 1fr !important;
+    padding: 0;
+  }
+
+  .live-preview {
+    position: static !important;
+    transform: none !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+}

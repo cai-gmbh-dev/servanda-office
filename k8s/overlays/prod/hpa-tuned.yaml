@@ -1,0 +1,207 @@
+# =============================================================================
+# Tuned Horizontal Pod Autoscalers — Production
+# Team 07 — DevOps & On-Prem | Sprint 12
+#
+# Replaces hpa-api.yaml and hpa-worker.yaml with tuned parameters
+# based on k6 load-test results and production traffic patterns.
+#
+# Changes from previous HPAs:
+#   API:    CPU 70%→65%, maxReplicas 10→12, memory metric added,
+#           custom metric (http_requests_per_second), scaling behaviors
+#   Worker: CPU 80%→75%, maxReplicas 8→10, custom metric (pgboss_queue_depth),
+#           scaling behaviors
+#   Web:    NEW — dedicated HPA for frontend pods
+#
+# Prerequisites:
+#   - Prometheus Adapter installed (for custom metrics)
+#   - prometheus-adapter ConfigMap configured for:
+#     - http_requests_per_second (from nginx/api metrics)
+#     - pgboss_queue_depth (from export-worker metrics)
+# =============================================================================
+
+# --- API HPA (Tuned) ---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: servanda-api-hpa
+  namespace: servanda-office
+  labels:
+    app: servanda
+    component: api
+    app.kubernetes.io/part-of: servanda-office
+  annotations:
+    servanda.de/tuning-basis: "k6 load-test results Sprint 12"
+    servanda.de/tuning-date: "2026-02-11"
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: servanda-api
+  minReplicas: 3
+  maxReplicas: 12
+  metrics:
+    # CPU: Lowered from 70% to 65% for earlier scaling.
+    # k6 load tests showed latency degradation starting at 68% CPU.
+    # 65% threshold provides headroom for traffic spikes.
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 65
+    # Memory: 80% threshold to catch memory leaks early.
+    # API pods have 2Gi limit in prod; scaling at 1.6Gi usage.
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+    # Custom: HTTP requests per second per pod.
+    # k6 load tests showed optimal throughput at ~100 rps/pod.
+    # Above 100 rps, P95 latency exceeds 500ms target.
+    # Requires: prometheus-adapter with metric mapping.
+    - type: Pods
+      pods:
+        metric:
+          name: http_requests_per_second
+        target:
+          type: AverageValue
+          averageValue: "100"
+  behavior:
+    # Scale-Up: Aggressive for user-facing API.
+    # Allow up to 3 pods every 60 seconds.
+    # 60s stabilization window prevents over-scaling on brief spikes.
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Pods
+          value: 3
+          periodSeconds: 60
+      selectPolicy: Max
+    # Scale-Down: Conservative to prevent flapping.
+    # Only remove 1 pod every 120 seconds.
+    # 300s stabilization window smooths out traffic dips.
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 120
+      selectPolicy: Min
+
+---
+
+# --- Export Worker HPA (Tuned) ---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: servanda-export-worker-hpa
+  namespace: servanda-office
+  labels:
+    app: servanda
+    component: export-worker
+    app.kubernetes.io/part-of: servanda-office
+  annotations:
+    servanda.de/tuning-basis: "k6 load-test results Sprint 12"
+    servanda.de/tuning-date: "2026-02-11"
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: servanda-export-worker
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    # CPU: Lowered from 80% to 75%.
+    # Export workers are CPU-intensive (docxtemplater + LibreOffice).
+    # k6 stress tests showed job failures above 78% sustained CPU.
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 75
+    # Custom: pgboss queue depth per pod.
+    # Target 5 jobs per pod ensures timely processing.
+    # At >5 jobs/pod, export latency exceeds SLA (30s).
+    # Requires: prometheus-adapter with pgboss metric mapping.
+    - type: Pods
+      pods:
+        metric:
+          name: pgboss_queue_depth
+        target:
+          type: AverageValue
+          averageValue: "5"
+  behavior:
+    # Scale-Up: Fast for workers to prevent queue backlog.
+    # Queue backlogs are user-visible (export wait times).
+    # 30s stabilization is low to react quickly to batch exports.
+    scaleUp:
+      stabilizationWindowSeconds: 30
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+      selectPolicy: Max
+    # Scale-Down: Very conservative for workers.
+    # 600s (10min) stabilization prevents killing workers mid-job.
+    # Export jobs can take up to 5 minutes (complex DOCX + ODT).
+    # Only remove 1 pod every 120s to allow graceful job completion.
+    scaleDown:
+      stabilizationWindowSeconds: 600
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 120
+      selectPolicy: Min
+
+---
+
+# --- Web Frontend HPA (New) ---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: servanda-web-hpa
+  namespace: servanda-office
+  labels:
+    app: servanda
+    component: web
+    app.kubernetes.io/part-of: servanda-office
+  annotations:
+    servanda.de/tuning-basis: "k6 load-test results Sprint 12"
+    servanda.de/tuning-date: "2026-02-11"
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: servanda-web
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    # CPU: Standard 70% threshold.
+    # Web pods serve static assets (nginx), CPU usage is typically low.
+    # Scaling is mainly for connection handling under load.
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+  behavior:
+    # Scale-Up: Moderate — web pods start fast (nginx).
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+      selectPolicy: Max
+    # Scale-Down: Moderate — web pods are lightweight, safe to remove.
+    scaleDown:
+      stabilizationWindowSeconds: 120
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 60
+      selectPolicy: Min

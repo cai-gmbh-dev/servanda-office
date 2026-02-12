@@ -1,0 +1,127 @@
+# Servanda Office — Visual Regression Tests
+# Sprint 12 (Team 06)
+#
+# Runs Playwright screenshot comparison tests on pull requests
+# that modify the web app. Uploads diff artifacts on failure.
+
+name: Visual Regression
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/web/**'
+      - 'packages/shared/**'
+
+concurrency:
+  group: visual-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  visual-regression:
+    name: Visual Regression Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: servanda_office_test
+          POSTGRES_USER: servanda
+          POSTGRES_PASSWORD: servanda_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U servanda"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://servanda:servanda_test@localhost:5432/servanda_office_test
+      CI: 'true'
+      BASE_URL: http://localhost:5173
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+        working-directory: apps/api
+
+      - name: Push schema to database
+        run: npx prisma db push --skip-generate --accept-data-loss
+        working-directory: apps/api
+
+      - name: Seed database
+        run: npx ts-node apps/api/prisma/seed.ts
+
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium --with-deps
+        working-directory: apps/web
+
+      - name: Start API in background
+        run: npm run dev -w apps/api &
+
+      - name: Start Web dev server in background
+        run: npm run dev -w apps/web &
+
+      - name: Wait for API and Web to be ready
+        run: |
+          echo "Waiting for API on localhost:3000..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000/api/v1/health > /dev/null 2>&1; then
+              echo "API is ready!"
+              break
+            fi
+            if [ "$i" = "30" ]; then
+              echo "API failed to start within 60s"
+              exit 1
+            fi
+            echo "API attempt $i/30 — retrying in 2s..."
+            sleep 2
+          done
+
+          echo "Waiting for Web on localhost:5173..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:5173/ > /dev/null 2>&1; then
+              echo "Web is ready!"
+              break
+            fi
+            if [ "$i" = "30" ]; then
+              echo "Web failed to start within 60s"
+              exit 1
+            fi
+            echo "Web attempt $i/30 — retrying in 2s..."
+            sleep 2
+          done
+
+      - name: Run Visual Regression Tests
+        run: npx playwright test --config playwright.config.visual.ts
+        working-directory: apps/web
+
+      - name: Upload screenshot diffs on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: visual-regression-diffs
+          path: |
+            apps/web/test-results/
+            apps/web/e2e/__screenshots__/
+          retention-days: 14
+
+      - name: Upload Playwright HTML report on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: visual-regression-report
+          path: apps/web/playwright-report/
+          retention-days: 14

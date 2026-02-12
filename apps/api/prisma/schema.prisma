@@ -54,6 +54,7 @@ model User {
   displayName String   @map("display_name") @db.VarChar(255)
   role        String   @db.VarChar(20) // admin | editor | user
   status      String   @default("invited") @db.VarChar(20) // invited | active | disabled
+  keycloakId  String?  @map("keycloak_id") @db.VarChar(255)
   mfaEnabled  Boolean  @default(false) @map("mfa_enabled")
   lastLoginAt DateTime? @map("last_login_at")
   createdAt   DateTime @default(now()) @map("created_at")
@@ -284,6 +285,7 @@ model ExportJob {
   requestedBy        String   @map("requested_by") @db.Uuid
   format             String   @db.VarChar(10) // docx | odt
   styleTemplateId    String?  @map("style_template_id") @db.Uuid
+  batchId            String?  @map("batch_id") @db.Uuid
   status             String   @default("queued") @db.VarChar(20)
   resultStoragePath  String?  @map("result_storage_path") @db.VarChar(1000)
   resultFileSize     BigInt?  @map("result_file_size")
@@ -299,6 +301,7 @@ model ExportJob {
 
   @@index([tenantId])
   @@index([tenantId, status])
+  @@index([tenantId, batchId])
   @@index([contractInstanceId])
   @@map("export_jobs")
 }

@@ -88,6 +88,35 @@
   - **Team 05:** DLQ Routes (`apps/api/src/modules/export/dlq-routes.ts`) — Failed-Liste, Retry, Archive, Stats. Branding Routes (`apps/api/src/modules/export/branding-routes.ts`) — StyleTemplate CRUD (fonts, colors, logo, margins).
   - **Team 06:** Component-Tests (CatalogPage, ContractsPage, QuestionInput, LivePreviewPanel), Test-Infrastruktur (vitest.config, test-setup, test-utils), axe-core CI im PR-Gate aktiviert.
   - **Team 07:** Prod-Overlay (`k8s/overlays/prod/`) — External Secrets, HPAs (API 3-10, Worker 2-8), NGINX Ingress + TLS (cert-manager), Replicas. On-Prem Overlay (`k8s/overlays/onprem/`) — MinIO StatefulSet (20Gi), statische K8s Secrets, LDAP-Config.
+- **Sprint 9 (E2E + Security-Hardening + Dokumentation) abgeschlossen (2026-02-11).** 10 Deliverables:
+  - **Team 01:** Breaking-Change-Policy ADR-005 (`docs/knowledge/adr-005-breaking-change-policy.md`) — SemVer, Deprecation-Timeline (2 Minor/8 Wochen), CI-Gate. DevOps/Admin-Anleitung (`docs/guides/devops-admin-guide.md`). User-Anleitungen nach Rollen (`docs/guides/user-guide-{admin,editor,enduser}.md`).
+  - **Team 02:** Keycloak Admin API Service (`apps/api/src/services/keycloak-admin.ts`, ~290 Zeilen) — Token-Caching, User-CRUD, MFA requireMfa(), Role-Mapping, Error-Isolation. MFA TOTP-Konfiguration (`docker/keycloak/realm-export.json`) — Conditional OTP Flow für Admins, CONFIGURE_TOTP Required Action.
+  - **Team 04:** Batch-Clause-Content-Endpoint (POST `/clauses/batch-content`, max 50 IDs) in Content-API integriert. ReviewPage (`apps/web/src/pages/ReviewPage.tsx`) — Pre-Completion Review mit Batch-Content, Parameter-Substitution, Validierungsstatus, Abschluss-Aktion.
+  - **Team 06:** Testcontainers-Setup (`apps/api/src/__tests__/setup-testcontainers.ts`) — PostgreSQL 16-alpine Container, Prisma Schema Push, cleanDb Helper. Security-Tests T-01..T-12 (`apps/api/src/__tests__/security/tenant-isolation.test.ts`) — 12 automatisierte Tests (Auth, Tenant-Isolation, RBAC, CORS, Security-Headers).
+  - **Team 07:** cert-manager + Let's Encrypt ClusterIssuer (`k8s/overlays/{prod,staging}/cert-manager-issuer.yaml`) — ACME HTTP01-Solver, Prod + Staging Issuers.
+- **Sprint 10 (Integration + E2E Validation + Production Polish) abgeschlossen (2026-02-11).** 10 Deliverables:
+  - **Team 01:** OpenAPI/Swagger API-Dokumentation (`docs/api/openapi.yaml`) — Vollständige Spec aller Endpoints (Identity, Content, Contract, Export). Modul-Boundaries Dokumentation (`docs/knowledge/module-boundaries-v1.md`) — Modul→Tabelle Matrix, Cross-Module-Regeln.
+  - **Team 02:** Keycloak Admin API in Identity-Routes integriert (`apps/api/src/modules/identity/routes.ts`) — User-Lifecycle-Sync (invite→create, activate→enable, deactivate→disable, delete). Rate-Limiting Middleware (`apps/api/src/middleware/rate-limit.ts`) — Auth 20/min, API 200/min. Passwort-Policies im Realm (12 Zeichen, Komplexität, History). Prisma-Schema: `keycloakId` Feld im User-Model.
+  - **Team 04:** Export-Trigger aus ReviewPage (Polling + Download). Keyboard-Navigation Interview-Flow (Enter/Shift+Enter/Ctrl+S).
+  - **Team 05:** Export-Pipeline E2E-Validierung (`apps/export-worker/src/__tests__/export-pipeline.integration.test.ts`, 10 Tests) — Vollständige Pipeline-Tests mit Seed-Daten.
+  - **Team 06:** Playwright E2E Happy-Path (`apps/web/e2e/contract-flow.spec.ts`, 6 Tests) — Template→Interview→Review→Complete→Export. CI-Pipeline erweitert: Testcontainers-Job, Security-Tests-Job, Lighthouse CI aktiviert. Lighthouse-URLs konfiguriert.
+  - **Team 07:** Backup-CronJob PostgreSQL (`k8s/base/backup-cronjob.yaml`) — Täglicher pg_dump, S3-Upload, 30 Tage Retention. External Secrets Operator Setup (`k8s/overlays/prod/`) — ClusterSecretStore + ExternalSecret Sync.
+- **Sprint 11 (MVP Release Preparation) abgeschlossen (2026-02-11).** 10 Deliverables:
+  - **Team 01:** MVP Release-Kandidat-Checkliste (`docs/knowledge/release-checklist-v1.md`) — Quality Gates, Deployment-Readiness, Rollback-Plan, Go/No-Go-Matrix. Tech-Stack-Review BB-001..007 (`docs/knowledge/tech-stack-review-v1.md`) — Alle Architektur-Entscheidungen validiert. API Performance-Baseline (`docs/knowledge/performance-baseline-v1.md`) — Latenz-Messungen, Skalierungs-Empfehlungen.
+  - **Team 02:** Keycloak Admin API Unit-Tests (`apps/api/src/services/__tests__/keycloak-admin.test.ts`) — Mock-fetch, Token-Caching, User-CRUD, MFA, Error-Isolation. CSRF-Evaluierung (`docs/knowledge/csrf-evaluation-v1.md`) — SameSite-Cookies ausreichend für SPA, kein CSRF-Token nötig.
+  - **Team 03:** Content-Import CLI (`apps/api/src/modules/content/import.ts`) — Bulk-Import Clauses/Templates via JSON, Zod-Validierung, Transaktionale Erstellung. Unit-Tests (`apps/api/src/modules/content/import.test.ts`). POST /import Admin-Endpoint in Content-Routes.
+  - **Team 04:** Responsive Design (`apps/web/src/styles/responsive.css`) — Breakpoints für Tablet/Mobile, Interview-Layout, Review-Screen. Changelog-UI (`apps/web/src/components/ChangelogPanel.tsx`) — Slide-over Panel, Version-History, Change-Types.
+  - **Team 05:** Template-Caching (`apps/export-worker/src/cache/template-cache.ts`) — LRU-Cache mit konfigurierbarer Größe. Pre-Warm Service (`apps/export-worker/src/cache/pre-warm.ts`) — Top-N Templates bei Worker-Start vorladen. Cache-Tests.
+  - **Team 06:** k6 Load-Tests (`apps/api/src/__tests__/load/api-load-test.js`) — Szenarien für Content/Contract/Export-API. Coverage CI-Artefakt in Main-Gate erweitert.
+  - **Team 07:** Loki Log-Aggregation (`docker/loki/`, `docker/promtail/`) — Zentralisiertes Logging. Alerting-Rules (`docker/prometheus/alerting-rules.yml`) — Error-Rate, Latenz, Export-Failures. Docker-Compose erweitert. K8s Smoke-Test (`k8s/scripts/smoke-test.sh`) — K3s-Validierung (Namespace, Deployments, Services, Health, RLS).
+- **Sprint 12 (Final MVP Release + Pilot-Readiness) abgeschlossen (2026-02-11).** 10 Deliverables:
+  - **Team 01:** Release-Notes v1.0 (`docs/knowledge/release-notes-v1.md`) — Features nach Epic, Technische Details, Known Limitations. Cross-Module-Event-Evaluierung (`docs/knowledge/cross-module-events-v1.md`) — EventEmitter vs. Mediator vs. Broker, Phase-2-Empfehlung.
+  - **Team 02:** Session-Hardening Middleware (`apps/api/src/middleware/session-hardening.ts`) — Token-Fingerprinting, Idle-Timeout 30min, Concurrent-Session-Limiting, Backchannel-Logout. Keycloak Backup-Strategie (`docs/knowledge/keycloak-backup-strategy-v1.md`) — Realm-Export CronJob, Recovery-Playbook.
+  - **Team 03:** Pilot-Content Dienstleistungsvertrag + NDA (`apps/api/prisma/fixtures/`) — Vollständige Templates mit Interview-Flows, Conditional Logic, Konfliktregeln.
+  - **Team 04:** ClauseReorderPanel (`apps/web/src/components/ClauseReorderPanel.tsx`) — DnD für Klausel-Reihenfolge, HTML5 API. i18n-Framework (`apps/web/src/i18n/`) — React Context, de/en, TypeScript-typisiert.
+  - **Team 05:** Batch-Export Routes (`apps/api/src/modules/export/batch-routes.ts`) — Max 20 Verträge, batchId-Tracking. Logo-Upload (`apps/api/src/modules/export/logo-upload.ts`) — PNG/JPEG/SVG, S3-Upload, Dimension-Detection.
+  - **Team 06:** Visual Regression Tests (`apps/web/e2e/visual-regression.spec.ts`) — Playwright Screenshot-Tests, 5 Seiten. QA Sign-Off (`docs/knowledge/qa-signoff-v1.md`) — BEREIT FÜR RELEASE.
+  - **Team 07:** Blue/Green Deployment (`k8s/scripts/blue-green-deploy.sh`) — Zero-Downtime, Rollback. HPA-Tuning (`k8s/overlays/prod/hpa-tuned.yaml`) — API min 2/max 8, Worker min 1/max 4.
 
 ## Offene Risiken
 
@@ -115,7 +144,7 @@
 - ~~RLS-Policies + App-Layer Guardrails verbindlich festlegen.~~ → Erledigt (ADR-001 Spec).
 - ~~ODT-Option als Beta via Konvertierung bestätigen (Owner: Team 05 + 07).~~ → Bestätigt (ODT-Evaluierung: AKZEPTABEL FÜR BETA, Feature-Flag per Tenant).
 - ~~QA-Gates als CI-Standard final freigeben (Owner: Team 06).~~ → Spezifiziert (QA-Gates CI v1, Rollout-Plan 4 Phasen).
-- Tech-Stack-Entscheidungen (BB-001..007) im Team-Review bestätigen (Owner: Team 01).
+- ~~Tech-Stack-Entscheidungen (BB-001..007) im Team-Review bestätigen (Owner: Team 01).~~ → Erledigt (Tech-Stack-Review v1, Sprint 11).
 - ~~Changelog-Format für Template-Versionen (Owner: Team 03, Ziel: Sprint 2).~~ → Erledigt (Content Versioning Schema v1, Abschnitt 5).
 - ~~DOCX Export MVP mit Referenzdokumenten (Owner: Team 05, Ziel: Sprint 3).~~ → Erledigt (DOCX Export Spec v1).
 - ~~Accessibility/Performance Baseline in CI (Owner: Team 06, Ziel: Sprint 3).~~ → Erledigt (A11y/Performance Baseline v1).
@@ -141,8 +170,19 @@
 - ~~Prod-Overlay mit External Secrets Operator (Owner: Team 07, Ziel: Sprint 8).~~ → Erledigt (Prod + On-Prem Overlays, Sprint 8).
 - ~~Testcontainers-Setup für echte PostgreSQL-Integration-Tests (Owner: Team 06, Ziel: Sprint 8).~~ → Verschoben auf Sprint 9.
 - ~~Component-Tests für React-Seiten (Owner: Team 06, Ziel: Sprint 8).~~ → Erledigt (4 Component-Test-Suiten + axe-core CI, Sprint 8).
-- Testcontainers-Setup für echte PostgreSQL-Integration-Tests (Owner: Team 06, Ziel: Sprint 9).
-- Security-Test-Szenarien (T-01..T-12) automatisieren (Owner: Team 06, Ziel: Sprint 9).
-- Review-Screen vor Completion implementieren (Owner: Team 04, Ziel: Sprint 9).
-- Batch-Clause-Content-Endpoint für Live-Preview (Owner: Team 04, Ziel: Sprint 9).
-- Breaking-Change-Policy formalisieren (Owner: Team 01, Ziel: Sprint 9).
+- ~~Testcontainers-Setup für echte PostgreSQL-Integration-Tests (Owner: Team 06, Ziel: Sprint 9).~~ → Erledigt (setup-testcontainers.ts + Beispiel-Integration-Test, Sprint 9).
+- ~~Security-Test-Szenarien (T-01..T-12) automatisieren (Owner: Team 06, Ziel: Sprint 9).~~ → Erledigt (12 Security-Tests für Auth/Tenant-Isolation/RBAC/CORS/Headers, Sprint 9).
+- ~~Review-Screen vor Completion implementieren (Owner: Team 04, Ziel: Sprint 9).~~ → Erledigt (ReviewPage.tsx mit Batch-Content + Validation, Sprint 9).
+- ~~Batch-Clause-Content-Endpoint für Live-Preview (Owner: Team 04, Ziel: Sprint 9).~~ → Erledigt (POST /clauses/batch-content, max 50 IDs, Sprint 9).
+- ~~Breaking-Change-Policy formalisieren (Owner: Team 01, Ziel: Sprint 9).~~ → Erledigt (ADR-005, SemVer + Deprecation-Timeline, Sprint 9).
+- ~~Keycloak Admin API in Identity-Routes integrieren (Owner: Team 02, Ziel: Sprint 10).~~ → Erledigt (User-Lifecycle-Sync + Rate-Limiting + Passwort-Policies, Sprint 10).
+- ~~Modul-Boundaries dokumentieren (Owner: Team 01, Ziel: Sprint 10).~~ → Erledigt (module-boundaries-v1.md, Sprint 10).
+- ~~API-Dokumentation OpenAPI/Swagger erstellen (Owner: Team 01, Ziel: Sprint 10).~~ → Erledigt (docs/api/openapi.yaml, Sprint 10).
+- ~~Lighthouse CI gegen laufende Web-Instanz testen (Owner: Team 06, Ziel: Sprint 10).~~ → Erledigt (Lighthouse CI im Main-Gate aktiviert, Sprint 10).
+- ~~E2E-Tests Interview-Complete-Export Happy-Path (Owner: Team 06, Ziel: Sprint 10).~~ → Erledigt (Playwright contract-flow.spec.ts, 6 Tests, Sprint 10).
+- ~~Performance-Baseline ermitteln: API-Latenz mit Seed-Daten (Owner: Team 01).~~ → Erledigt (performance-baseline-v1.md, Sprint 11).
+- ~~CSRF-Token-Handling für SPA evaluieren (Owner: Team 02).~~ → Erledigt (csrf-evaluation-v1.md, Sprint 11).
+- ~~Visual Regression Tests einrichten (Owner: Team 06).~~ → Erledigt (visual-regression.spec.ts, Sprint 12).
+- ~~Load-Testing mit k6 für API-Performance (Owner: Team 06).~~ → Erledigt (api-load-test.js, Sprint 11).
+- ~~Blue/Green Deployment-Strategie (Owner: Team 07).~~ → Erledigt (blue-green-deploy.sh, Sprint 12).
+- ~~Log-Aggregation (Loki/EFK Stack) (Owner: Team 07).~~ → Erledigt (Loki + Promtail + Alerting-Rules, Sprint 11).

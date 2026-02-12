@@ -1,0 +1,101 @@
+# Prometheus Alerting Rules for Servanda Office
+# Covers API reliability, export pipeline, latency, infrastructure health
+
+groups:
+  - name: servanda-api
+    rules:
+      # --- API Error Rate ---
+      - alert: HighErrorRate
+        expr: >
+          (
+            sum(rate(http_requests_total{status=~"5.."}[5m]))
+            /
+            sum(rate(http_requests_total[5m]))
+          ) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "High HTTP 5xx error rate"
+          description: >
+            More than 5% of HTTP requests are returning 5xx errors
+            over the last 5 minutes. Current value: {{ $value | humanizePercentage }}.
+
+      # --- API Latency (P95) ---
+      - alert: HighLatencyP95
+        expr: >
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le)
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High API latency (P95 > 500ms)"
+          description: >
+            The 95th percentile of HTTP request duration exceeds 500ms
+            over the last 5 minutes. Current value: {{ $value | humanizeDuration }}.
+
+  - name: servanda-export
+    rules:
+      # --- Export Job Stuck ---
+      - alert: ExportJobStuck
+        expr: export_job_duration_seconds > 120
+        for: 1m
+        labels:
+          severity: warning
+          team: export
+        annotations:
+          summary: "Export job running longer than 2 minutes"
+          description: >
+            An export job has been running for over 120 seconds,
+            which may indicate a stuck or deadlocked worker.
+            Job duration: {{ $value | humanizeDuration }}.
+
+  - name: servanda-infrastructure
+    rules:
+      # --- Database Connection Pool Exhausted ---
+      - alert: DatabaseConnectionPoolExhausted
+        expr: >
+          pg_stat_activity_count
+          >
+          (pg_settings_max_connections * 0.8)
+        for: 2m
+        labels:
+          severity: critical
+          team: devops
+        annotations:
+          summary: "PostgreSQL connection pool near exhaustion"
+          description: >
+            Active PostgreSQL connections ({{ $value }}) have exceeded 80%
+            of max_connections. Risk of connection refusal.
+
+      # --- Disk Space Low ---
+      - alert: DiskSpaceLow
+        expr: >
+          (node_filesystem_avail_bytes / node_filesystem_size_bytes) < 0.1
+        for: 5m
+        labels:
+          severity: critical
+          team: devops
+        annotations:
+          summary: "Disk space below 10%"
+          description: >
+            Available disk space on {{ $labels.mountpoint }} is below 10%.
+            Current available: {{ $value | humanizePercentage }}.
+
+      # --- TLS Certificate Expiring Soon ---
+      - alert: CertificateExpiringSoon
+        expr: >
+          (cert_expiry_timestamp - time()) < (7 * 24 * 3600)
+        for: 1h
+        labels:
+          severity: warning
+          team: devops
+        annotations:
+          summary: "TLS certificate expiring within 7 days"
+          description: >
+            A TLS certificate will expire in less than 7 days.
+            Remaining time: {{ $value | humanizeDuration }}.

@@ -1,6 +1,10 @@
 {
   "ci": {
     "collect": {
+      "url": [
+        "http://localhost:5173/",
+        "http://localhost:5173/dashboard"
+      ],
       "numberOfRuns": 3,
       "settings": {
         "preset": "desktop",

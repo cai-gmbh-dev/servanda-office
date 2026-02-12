@@ -15,10 +15,10 @@ spec:
   ingressClassName: nginx
   tls:
     - hosts:
-        - servanda.example.com
+        - app.servanda.de
       secretName: servanda-tls
   rules:
-    - host: servanda.example.com
+    - host: app.servanda.de
       http:
         paths:
           - path: /api

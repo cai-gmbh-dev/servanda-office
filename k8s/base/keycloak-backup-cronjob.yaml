@@ -1,0 +1,218 @@
+# Keycloak Realm-Export Backup CronJob — Sprint 12 (Team 02)
+# - Runs daily at 03:00 UTC (1 hour after PostgreSQL backup)
+# - Exports Keycloak realm config via kcadm.sh
+# - Compresses and uploads to S3 (MinIO / AWS S3)
+# - Retention: 30 days (older exports are deleted)
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: keycloak-backup
+  namespace: servanda-office
+  labels:
+    app.kubernetes.io/name: keycloak-backup
+    app.kubernetes.io/component: backup
+    app.kubernetes.io/part-of: servanda-office
+spec:
+  schedule: "0 3 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 7
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    metadata:
+      labels:
+        app.kubernetes.io/name: keycloak-backup
+        app.kubernetes.io/component: backup
+    spec:
+      backoffLimit: 3
+      activeDeadlineSeconds: 1800
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: keycloak-backup
+            app.kubernetes.io/component: backup
+        spec:
+          restartPolicy: OnFailure
+          serviceAccountName: default
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            fsGroup: 1000
+          containers:
+            - name: keycloak-backup
+              image: quay.io/keycloak/keycloak:24.0
+              imagePullPolicy: IfNotPresent
+              resources:
+                requests:
+                  memory: 128Mi
+                  cpu: 100m
+                limits:
+                  memory: 256Mi
+                  cpu: 250m
+              env:
+                # --- Keycloak Admin credentials from Secret ---
+                - name: KEYCLOAK_ADMIN
+                  valueFrom:
+                    secretKeyRef:
+                      name: servanda-keycloak-credentials
+                      key: admin-username
+                - name: KEYCLOAK_ADMIN_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: servanda-keycloak-credentials
+                      key: admin-password
+                - name: KEYCLOAK_URL
+                  value: "http://keycloak:8080"
+                - name: KEYCLOAK_REALM
+                  value: "servanda"
+                # --- S3 credentials from Secret ---
+                - name: AWS_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: servanda-s3-credentials
+                      key: S3_ACCESS_KEY
+                - name: AWS_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: servanda-s3-credentials
+                      key: S3_SECRET_KEY
+                - name: S3_ENDPOINT
+                  valueFrom:
+                    secretKeyRef:
+                      name: servanda-s3-credentials
+                      key: S3_ENDPOINT
+                # --- Backup configuration from ConfigMap ---
+                - name: S3_BUCKET
+                  valueFrom:
+                    configMapKeyRef:
+                      name: backup-config
+                      key: S3_BUCKET
+                - name: BACKUP_RETENTION_DAYS
+                  valueFrom:
+                    configMapKeyRef:
+                      name: backup-config
+                      key: BACKUP_RETENTION_DAYS
+              command:
+                - /bin/bash
+                - -euo
+                - pipefail
+                - -c
+                - |
+                  echo "=== Servanda Office Keycloak Realm-Export Backup ==="
+                  echo "Started at: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+                  KCADM="/opt/keycloak/bin/kcadm.sh"
+                  S3_PREFIX="keycloak/"
+                  TIMESTAMP=$(date -u +%Y%m%d-%H%M%S)
+                  EXPORT_FILE="/tmp/realm-${KEYCLOAK_REALM}-${TIMESTAMP}.json"
+                  EXPORT_GZ="${EXPORT_FILE}.gz"
+
+                  # --- Step 1: Authenticate to Keycloak Admin CLI ---
+                  echo "[1/4] Authenticating to Keycloak at ${KEYCLOAK_URL}..."
+                  ${KCADM} config credentials \
+                    --server "${KEYCLOAK_URL}" \
+                    --realm master \
+                    --user "${KEYCLOAK_ADMIN}" \
+                    --password "${KEYCLOAK_ADMIN_PASSWORD}"
+
+                  echo "[OK] Authenticated as ${KEYCLOAK_ADMIN}"
+
+                  # --- Step 2: Export realm configuration ---
+                  echo "[2/4] Exporting realm '${KEYCLOAK_REALM}'..."
+                  ${KCADM} get "realms/${KEYCLOAK_REALM}" > "${EXPORT_FILE}"
+
+                  # Also export clients, roles, and authentication flows separately
+                  # for granular restore capability
+                  ${KCADM} get "realms/${KEYCLOAK_REALM}/clients" \
+                    > "/tmp/clients-${KEYCLOAK_REALM}-${TIMESTAMP}.json"
+                  ${KCADM} get "realms/${KEYCLOAK_REALM}/roles" \
+                    > "/tmp/roles-${KEYCLOAK_REALM}-${TIMESTAMP}.json"
+                  ${KCADM} get "realms/${KEYCLOAK_REALM}/authentication/flows" \
+                    > "/tmp/auth-flows-${KEYCLOAK_REALM}-${TIMESTAMP}.json"
+
+                  # Combine into a single archive
+                  FILESIZE=$(du -h "${EXPORT_FILE}" | cut -f1)
+                  echo "[OK] Realm export created: ${EXPORT_FILE} (${FILESIZE})"
+
+                  # --- Step 3: Compress and upload to S3 ---
+                  echo "[3/4] Compressing and uploading to S3..."
+
+                  # Compress the main export
+                  gzip -9 "${EXPORT_FILE}"
+
+                  # Create a tar archive with all exports
+                  ARCHIVE_FILE="/tmp/keycloak-backup-${KEYCLOAK_REALM}-${TIMESTAMP}.tar.gz"
+                  tar czf "${ARCHIVE_FILE}" \
+                    -C /tmp \
+                    "realm-${KEYCLOAK_REALM}-${TIMESTAMP}.json.gz" \
+                    "clients-${KEYCLOAK_REALM}-${TIMESTAMP}.json" \
+                    "roles-${KEYCLOAK_REALM}-${TIMESTAMP}.json" \
+                    "auth-flows-${KEYCLOAK_REALM}-${TIMESTAMP}.json"
+
+                  S3_TARGET="s3://${S3_BUCKET}/${S3_PREFIX}${TIMESTAMP}.tar.gz"
+
+                  # Install aws-cli for S3 operations
+                  # The Keycloak image is based on UBI, use microdnf if available
+                  if command -v microdnf &> /dev/null; then
+                    microdnf install -y awscli 2>/dev/null || true
+                  fi
+
+                  # Fallback: use curl for S3 upload if aws-cli is not available
+                  if command -v aws &> /dev/null; then
+                    aws s3 cp "${ARCHIVE_FILE}" "${S3_TARGET}" \
+                      --endpoint-url "${S3_ENDPOINT}" \
+                      --no-progress
+                  else
+                    echo "[WARN] aws-cli not available — using curl for S3 upload"
+                    CONTENT_TYPE="application/gzip"
+                    DATE_VALUE=$(date -u +%Y%m%dT%H%M%SZ)
+                    RESOURCE="/${S3_BUCKET}/${S3_PREFIX}${TIMESTAMP}.tar.gz"
+                    STRING_TO_SIGN="PUT\n\n${CONTENT_TYPE}\n${DATE_VALUE}\n${RESOURCE}"
+                    SIGNATURE=$(echo -en "${STRING_TO_SIGN}" | openssl sha1 -hmac "${AWS_SECRET_ACCESS_KEY}" -binary | base64)
+
+                    curl -X PUT -T "${ARCHIVE_FILE}" \
+                      -H "Date: ${DATE_VALUE}" \
+                      -H "Content-Type: ${CONTENT_TYPE}" \
+                      -H "Authorization: AWS ${AWS_ACCESS_KEY_ID}:${SIGNATURE}" \
+                      "${S3_ENDPOINT}${RESOURCE}"
+                  fi
+
+                  ARCHIVE_SIZE=$(du -h "${ARCHIVE_FILE}" | cut -f1)
+                  echo "[OK] Upload complete: ${S3_TARGET} (${ARCHIVE_SIZE})"
+
+                  # Cleanup temp files
+                  rm -f /tmp/realm-${KEYCLOAK_REALM}-${TIMESTAMP}.json.gz
+                  rm -f /tmp/clients-${KEYCLOAK_REALM}-${TIMESTAMP}.json
+                  rm -f /tmp/roles-${KEYCLOAK_REALM}-${TIMESTAMP}.json
+                  rm -f /tmp/auth-flows-${KEYCLOAK_REALM}-${TIMESTAMP}.json
+                  rm -f "${ARCHIVE_FILE}"
+
+                  # --- Step 4: Cleanup old backups (retention policy) ---
+                  echo "[4/4] Cleaning up backups older than ${BACKUP_RETENTION_DAYS} days..."
+
+                  CUTOFF_DATE=$(date -u -d "-${BACKUP_RETENTION_DAYS} days" +%Y%m%d 2>/dev/null || \
+                    date -u -v-${BACKUP_RETENTION_DAYS}d +%Y%m%d 2>/dev/null || \
+                    echo "00000000")
+
+                  if [ "${CUTOFF_DATE}" = "00000000" ]; then
+                    echo "[WARN] Could not calculate cutoff date, skipping cleanup"
+                  elif command -v aws &> /dev/null; then
+                    DELETED_COUNT=0
+                    aws s3 ls "s3://${S3_BUCKET}/${S3_PREFIX}" \
+                      --endpoint-url "${S3_ENDPOINT}" 2>/dev/null | \
+                    while read -r LINE; do
+                      FILE_NAME=$(echo "${LINE}" | awk '{print $NF}')
+                      FILE_DATE=$(echo "${FILE_NAME}" | grep -oE '[0-9]{8}' | head -1)
+
+                      if [ -n "${FILE_DATE}" ] && [ "${FILE_DATE}" -lt "${CUTOFF_DATE}" ] 2>/dev/null; then
+                        echo "  Deleting old backup: ${FILE_NAME} (date: ${FILE_DATE})"
+                        aws s3 rm "s3://${S3_BUCKET}/${S3_PREFIX}${FILE_NAME}" \
+                          --endpoint-url "${S3_ENDPOINT}"
+                        DELETED_COUNT=$((DELETED_COUNT + 1))
+                      fi
+                    done
+                    echo "[OK] Cleanup complete (deleted ${DELETED_COUNT:-0} old backups)"
+                  else
+                    echo "[WARN] aws-cli not available — skipping cleanup"
+                  fi
+
+                  echo "=== Keycloak Backup finished at: $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="

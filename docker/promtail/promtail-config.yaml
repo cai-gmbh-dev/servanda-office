@@ -1,0 +1,79 @@
+# Promtail Configuration for Servanda Office
+# Scrapes Docker container logs and pushes to Loki
+# Extracts pino JSON fields for structured querying in Grafana
+
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+    relabel_configs:
+      # Extract container name as label
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: container_name
+      # Extract Docker Compose service name
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_service']
+        target_label: service
+      # Extract Docker Compose project
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_project']
+        target_label: project
+      # Only scrape containers from servanda project
+      - source_labels: ['project']
+        regex: 'docker|servanda.*'
+        action: keep
+
+    pipeline_stages:
+      # Try JSON parsing for pino-structured logs (API, export-worker)
+      - match:
+          selector: '{service=~"api|export-worker"}'
+          stages:
+            - json:
+                expressions:
+                  level: level
+                  msg: msg
+                  tenant_id: tenant_id
+                  request_id: request_id
+                  method: method
+                  url: url
+                  status_code: statusCode
+                  response_time: responseTime
+            # Map pino numeric levels to human-readable labels
+            - template:
+                source: level
+                template: >-
+                  {{ if eq .Value "10" }}trace{{ else if eq .Value "20" }}debug{{ else if eq .Value "30" }}info{{ else if eq .Value "40" }}warn{{ else if eq .Value "50" }}error{{ else if eq .Value "60" }}fatal{{ else }}{{ .Value }}{{ end }}
+            - labels:
+                level:
+                tenant_id:
+                request_id:
+            - output:
+                source: msg
+
+      # Keycloak logs — extract log level
+      - match:
+          selector: '{service="keycloak"}'
+          stages:
+            - regex:
+                expression: '^(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}) (?P<level>\w+)'
+            - labels:
+                level:
+
+      # PostgreSQL logs — extract log level
+      - match:
+          selector: '{service="postgres"}'
+          stages:
+            - regex:
+                expression: '^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+ \w+ \[.*\] (?P<level>\w+):'
+            - labels:
+                level:

@@ -28,6 +28,16 @@ Ziel: Ein gemeinsamer Ort für Entscheidungswissen, Projektgedächtnis und team�
 - `odt-conversion-eval-v1.md` – ODT-Konvertierung Evaluierung (LibreOffice headless, Qualität, Performance, Sicherheit, Beta-Empfehlung)
 - `a11y-performance-baseline-v1.md` – Accessibility & Performance Baseline (WCAG 2.1 AA, Lighthouse CI, Core Web Vitals, Bundle-Budgets)
 - `audit-logging-e2e-v1.md` – Audit Logging E2E Spezifikation (AuditService, Partitionierung, Retention, Query-API, Monitoring, E2E-Tests)
+- `adr-005-breaking-change-policy.md` – ADR-005 Breaking-Change-Policy (SemVer, Deprecation-Timeline, Migration-Guide, CI-Gate)
+- `module-boundaries-v1.md` – Modul-Boundaries (Modul→Tabelle Matrix, Cross-Module-Regeln, Prisma-Client-Scope)
+- `release-checklist-v1.md` – MVP Release-Kandidat-Checkliste (Quality Gates, Deployment-Readiness, Go/No-Go)
+- `tech-stack-review-v1.md` – Tech-Stack-Review BB-001..007 (Bewertung aller Architektur-Entscheidungen)
+- `performance-baseline-v1.md` – API Performance-Baseline (Latenz-Messungen, Skalierungs-Empfehlungen)
+- `csrf-evaluation-v1.md` – CSRF-Evaluierung für SPA (SameSite-Cookies, Token-Handling, Empfehlung)
+- `release-notes-v1.md` – MVP v1.0 Release-Notes (Features nach Epic, Technische Details, Known Limitations)
+- `cross-module-events-v1.md` – Cross-Module-Event-Evaluierung (EventEmitter vs. Mediator vs. Broker, Phase-2-Empfehlung)
+- `keycloak-backup-strategy-v1.md` – Keycloak Backup-Strategie (Realm-Export-Automatisierung, Recovery-Playbook)
+- `qa-signoff-v1.md` – Final QA Sign-Off MVP v1.0 (Quality Gates, Test-Abdeckung, Release-Empfehlung)
 - `project-memory.md` – Laufendes Gedächtnis (Meilensteine, offene Risiken, Learnings)
 - `glossar.md` – Einheitliche Begriffe
 
@@ -38,7 +48,7 @@ Ziel: Ein gemeinsamer Ort für Entscheidungswissen, Projektgedächtnis und team�
 4. Keine Team-Insellösungen: zentrale Erkenntnisse müssen hier gespiegelt werden.
 
 ## Decision Map
-- ADRs: `adr-log.md` + `adr-001-multi-tenant-isolation.md` bis `adr-004-odt-strategy.md`
+- ADRs: `adr-log.md` + `adr-001-multi-tenant-isolation.md` bis `adr-005-breaking-change-policy.md`
 - Entscheidungen: `decision-register.md`
 - Architektur: `architecture-summary.md`
 - Domänenmodell: `domain-model-v0.1.md`

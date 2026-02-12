@@ -18,6 +18,7 @@
     "build:worker": "npm run build -w apps/export-worker",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint . --ext .ts,.tsx",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
@@ -28,6 +29,10 @@
     "docker:up": "docker compose -f docker/docker-compose.yml up -d",
     "docker:down": "docker compose -f docker/docker-compose.yml down",
     "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules"
+  },
+  "devDependencies": {
+    "testcontainers": "^10.13.0",
+    "@testcontainers/postgresql": "^10.13.0"
   },
   "engines": {
     "node": ">=20.0.0",

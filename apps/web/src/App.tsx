@@ -4,6 +4,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { CatalogPage } from './pages/CatalogPage';
 import { InterviewPage } from './pages/InterviewPage';
 import { ContractsPage } from './pages/ContractsPage';
+import { ReviewPage } from './pages/ReviewPage';
 
 export function App() {
   return (
@@ -15,6 +16,7 @@ export function App() {
         <Route path="/contracts" element={<ContractsPage />} />
         <Route path="/contracts/new/:templateId" element={<InterviewPage />} />
         <Route path="/contracts/:id/edit" element={<InterviewPage />} />
+        <Route path="/contracts/:id/review" element={<ReviewPage />} />
       </Route>
     </Routes>
   );

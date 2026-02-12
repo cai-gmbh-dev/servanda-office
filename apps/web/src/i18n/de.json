@@ -1,0 +1,62 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "catalog": "Vorlagen-Katalog",
+    "contracts": "Verträge",
+    "settings": "Einstellungen"
+  },
+  "interview": {
+    "next_question": "Nächste Frage",
+    "previous_question": "Vorherige Frage",
+    "save": "Speichern",
+    "progress": "Fortschritt",
+    "step_of": "Schritt {current} von {total}",
+    "auto_saved": "Automatisch gespeichert",
+    "complete": "Vertrag abschließen"
+  },
+  "review": {
+    "title": "Vertrag prüfen",
+    "summary": "Zusammenfassung",
+    "answers": "Ihre Angaben",
+    "clauses": "Vertragsklauseln",
+    "validation_valid": "Keine Konflikte — Vertrag kann abgeschlossen werden.",
+    "validation_warnings": "Warnungen vorhanden",
+    "validation_conflicts": "Konflikte müssen gelöst werden",
+    "back_to_interview": "Zurück zum Interview",
+    "finalize": "Vertrag abschließen"
+  },
+  "catalog": {
+    "search_placeholder": "Vorlage suchen...",
+    "filter_category": "Kategorie",
+    "filter_jurisdiction": "Rechtsgebiet",
+    "reset_filters": "Filter zurücksetzen",
+    "create_contract": "Vertrag erstellen",
+    "no_results": "Keine Vorlagen gefunden"
+  },
+  "contracts": {
+    "title": "Meine Verträge",
+    "status_draft": "Entwurf",
+    "status_completed": "Abgeschlossen",
+    "status_archived": "Archiviert",
+    "edit": "Bearbeiten",
+    "view": "Ansehen",
+    "export": "Exportieren"
+  },
+  "export": {
+    "preparing": "Export wird vorbereitet...",
+    "processing": "Dokument wird erstellt...",
+    "ready": "Download bereit",
+    "download": "Herunterladen",
+    "retry": "Erneut versuchen",
+    "failed": "Export fehlgeschlagen"
+  },
+  "common": {
+    "loading": "Laden...",
+    "error": "Ein Fehler ist aufgetreten",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "delete": "Löschen",
+    "confirm": "Bestätigen",
+    "back": "Zurück"
+  }
+}
